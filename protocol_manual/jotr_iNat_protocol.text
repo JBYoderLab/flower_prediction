@@ -1,0 +1,154 @@
+Annotating iNaturalist records for Joshua tree
+==============================================
+
+"Community science" is a potentially powerful tool for data collection. Online platforms let members of the general public contribute to work-intensive tasks like searching for species of interest in their neighborhoods, or annotating sets of photographic records in their spare time. For our study organism, the Joshua tree (*Yucca brevifolia*), the community science platform [iNaturalist](https://www.inaturalist.org) is a particularly valuable source of data. Joshua trees are the biggest plants in most parts of their home range, and they are distinctive enough to identify from a photograph. As you'll see below, it's also pretty easy to determine other key attributes of the trees from iNaturalist image data.
+
+An important feature of plants' adaptation to their environments is *phenology*, the timing of key life stages, especially reproduction, over the course of the year. Plants must "schedule" reproduction to match the availability of necessary resources, like water, and flowering plants often need to make sure they produce flowers at times of the year when animal pollinators will be active. In deserts, flowering and fruit production are often timed to evade the hottest, driest parts of summer --- a lot of "desert annual" plants rush to reproduce before summer drought kills them.
+
+Joshua trees flower in the spring, between late February and into April. Their phenology is probably linked to the availability of winter rains and snow, the main source of water in most of their home range, and possibly to the activity of their pollinators. (Or maybe the pollinators link their active period to the trees' flowering!) Because they live for decades or centuries, Joshua trees don't need to reproduce every year. It's thought that they flower when they've had a good supply of water over a period as long as two years; casual observations seem to show that trees at any given location rarely flower two years in a row. However, the specific environmental cues that determine whether or not the trees flower have not been rigorously tested --- to do that, we'd need data tracking the trees' flowering over multiple years, in a range of different environments.
+
+The iNaturalist database might have that information. Users have contributed thousands of observation records of Joshua trees across the Mojave, covering half a decade or more. However, most of these observation records consist of a date of observation, a location, and a photo --- there's no formal confirmation that what's in the photo is actually a Joshua tree, or whether or not the tree is flowering. 
+
+That's where you come in! The iNaturalist platform has an interface specifically designed to let people review other users' observation records, to confirm species identity and to add annotations about details that are visible in the photos supporting the observation. To help build our database of when and where Joshua trees have flowered, we need to dig into the iNaturalist records, review their species identities, and formally annotate whether or not they show flowering trees. 
+
+
+Setup
+-----
+
+To contribute observations or add annotations to existing observations (as we will do in this protocol), you will need to set up a profile on iNaturalist. Navigate to [iNaturalist.org](https://www.inaturalist.org) in your preferred browser, and click "Sign Up" in the upper right corner of the front page, then follow the steps to complete registration.
+
+
+Preparing to annotate
+---------------------
+
+When you're registered with iNaturalist, make sure you've logged into the site. If you're logged in, you should see your profile picture in the top right corner of the front page, [iNaturalist.org](https://www.inaturalist.org). If not, you'll see the words "Log In" instead; click on them to log in. 
+
+### Find Joshua tree observations to annotate
+
+Immediately after logging in you should see a "Dashboard" of your activity on iNaturalist; if you don't see this, you can navigate to it by clicking on your profile picture in the upper right corner of the front page. From this dashboard, you can add your own observations, see other users' annotations of your observations, and work on other contributions to the iNaturalist database. To start reviewing and annotating Joshua tree observation records, click the "Identify" link in the gray bar at the top of the dashboard screen.
+
+This will take you to a new screen full of observation records that iNaturalist wants someone to examine, whether to confirm the identification of a species or to add annotations. We want to work with Joshua tree observations in the Mojave Desert, the only region where Joshua trees grow naturally. (The iNaturalist database includes records of artificial plantings, and mistaken identifications --- restricting the search to the Mojave helps eliminate these.) At the top right of the Identify page are search boxes labeled "Species" and "Place". *Type "Joshua tree" into the "Species" box and "Mojave Desert" into the "Place" box.* As you type, iNaturalist will suggest species and region identifiers from its database, listed in drop-down menus below each search box; choose the first option from each list after you've finished typing in the search term. You should end up with a page like that Figure 1.
+
+![The search box after searching for Joshua tree in the Mojave Desert](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig01_identify-search.png "The search box after searching for Joshua tree in the Mojave Desert")
+
+### Filter the search results
+
+To annotate records, you'll need to narrow the search a bit, to make sure there's something to annotate. Click the gray "Filters" button to the right of the search boxes, and change the following options in the panel that drops down
+
+1. Under the "Show" section of the panel, turn on the toggle for "Has Photos".
+2. Under the "Review" section, make sure you've selected "No".
+3. Click the blue "More Filters" link to expand the panel. Under "Without Annotation", click the drop-down to select "Plant Phenology", and leave the second drop-down that appears set to "Any". 
+
+The completed filter set should look like Figure 2.
+
+![Filtering the search results with the above options](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig02_identify-filter.png "Filtering the search results with the above options")
+
+Those options will ensure you see all iNaturalist observations for Joshua tree that have photos you can examine, that you have not previously reviewed, and that lack annotations about whether flower buds, flowers, or fruits are present. Click the blue "Update Search" button at the bottom left of the Filters panel, and you're ready to start reviewing and annotating observations!
+
+
+Annotate observations
+---------------------
+
+Clicking on the first record in your filtered search results will take you to a page displaying all the information available for that observation. Figure 3 shows the record for a seedling Joshua tree.
+
+![The observation record screen, with the Info tab open](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig03_annotate-info.png "The observation record screen, with the Info tab open")
+
+The observation display has a panel on the left with the photo (or, if you're lucky, photos) that support the observation, and a panel on the right with annotations based on the information provided by the user who made the observation in the first place, and any other annotations added by other users. The right-hand panel is divided into tabs labeled "Info", "Suggestions", "Annotations", and "Data Quality", and the "Info" tab is open by default. 
+
+### The "Info" tab
+
+There you can see an inset map of the location where the observation was made, with other observations of Joshua tree added for context --- there will often be so many other observations nearby that they're given as pixelated red shading rather than individual points. If there aren't any other records of Joshua tree's presence in the inset map, that's a warning flag about the quality of the record, because it means it may be located outside the species's home range.
+
+Below the map is a list of suggested identifications for the record, which will probably be only one item long --- the observation given by the iNaturalist user who created the record. If the image in the left-hand panel looks like a Joshua tree to you, you can validate the observation by clicking the "Agree" button next to that identification. This will create a new identification, attributed to you, listed below the original identification.
+
+![The observation record screen, with the Info tab open, after the ID is confirmed](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig04_agree.png "The observation record screen, with the Info tab open, after the ID is confirmed")
+
+### The "Annotations" tab
+
+Now that you've confirmed the observation's identity as a Joshua tree, it's time to add phenology information. Click the "Annotations" tab. You'll see a table with two "Attributes" for the record, Plant Phenology and Sex. Joshua trees are hermaphroditic --- all individuals have both male and female function --- so we're going to ignore the Sex attribute; we're interested in Plant Phenology. If you set your search filters correctly, the second column of the Plant Phenology row in the Annotations table should show only the word "Select" in blue text. Click "Select", and you'll get a drop-down menu of possible phenology annotations, as in Figure 5.
+
+![The observation record screen, in the Annotations tab, with the options for Plant Phenology opened](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig05_annotate-annotations.png "The observation record screen, in the Annotations tab, with the options for Plant Phenology opened")
+
+Choose the value for Plant Phenology that best reflects what you see in the image or images in the left-hand panel of the window. There are four possible values, which reflect very broad phases of a plant's flowering and fruit-bearing --- its phenology.  
+
+#### Flower Budding
+
+Joshua tree buds are borne in the middle of the rosettes of leaves on the ends of individual branches. Very early in development a bud may only be visible as a swelling deep in the middle of the leaf rosette. In their most distinctive developmental phase, buds look like white, scaly eggs. Figure 6 is a close-up on a bud like this.
+
+![A Joshua tree bud, up close](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig06_bud.jpeg "A Joshua tree bud, up close")
+
+#### Flowers
+
+![A Joshua tree inflorescence](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig07_flowers.jpeg "A Joshua tree inflorescence")
+
+As a flower bud matures past the scaly-egg stage, the scales peel back to reveal flowers. Each bud contains a whole *inflorescence* of white flowers, stacked together in a conical form called a *panicle* like a sort of floral [croquembouche](https://en.wikipedia.org/wiki/Croquembouche). This stage will often be the easiest to identify in iNaturalist photos, because the color and shape of the flowers contrast so clearly with the rest of the tree.
+
+#### Fruiting
+
+![A bunch of fresh, green Joshua tree fruit](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig08_fruit.jpeg "A bunch of fresh, green Joshua tree fruit")
+
+When the Joshua tree's flowers have been pollinated by the [specialized moths that visit them](https://joshuatreegenome.org/archives/2016/03/what-is-the-deal-with-joshua-trees-and-yucca-moths), they develop into fruit. Out of all the flowers in an inflorescence, only a subset typically form fruit, even after pollination. In a good year, when the moths have been busy and there's been decent precipitation, an inflorescence may form dozens of fruit, stacked together like a bunch of grapes. It's not unusual to see just one or two mature fruits hanging on an otherwise bare inflorescence stalk, however. 
+
+"Fruiting" is a trickier phenology stage for Joshua trees. This is because, although desert animals like antelope ground squirrels do eat Joshua tree fruit --- or rather, break them open to eat the seeds inside --- the fruits can remain hanging on the stalk for more than a year after they originally form. Over time, the fruits will darken from the fresh green color you see in the image above, and shrivel as they dry out. It's important that you only use the "Fruiting" annotation for observations of fruits that are *less than a year old*. That means making sure the fruits in the image are still at least somewhat green, and not too badly shriveled from the dry desert air. 
+
+You can see a wider range of iNaturalist records with images of Joshua tree fruit [here](https://www.inaturalist.org/observations?place_id=any&q=fruit&quality_grade=research&taxon_id=47785). A good example of fruit that is definitely more than a year old is [this record](https://www.inaturalist.org/observations/36123667) --- you can see the fruits in the image are browned and fully dried out.
+
+If fruits in the image are shriveled up and have no green coloration, *do not choose "Fruiting"*.
+
+#### No Evidence of Flowering
+
+This last phenology designation is going to be far and away the most common one you use. The image in our example record above would plainly have that designation --- it's a very young tree, still embedded in the "nurse plant" that sheltered it in its first vulnerable years, and it hasn't gotten nearly big enough to flower. You should choose "No Evidence of Flowering" any time you don't see flower buds, flowers, or fresh fruit.
+
+### Some tips and tricks
+
+When you add an annotation or confirm the species identity of a record, there's a little time lag while iNaturalist registers your input in its database. Make sure you see your annotation finalized before you move on to the next step.
+
+You can often get a closer view of the image in the left-hand panel by clicking on it. This will zoom in and let you pan around the image to look for details. 
+
+Also, make sure to *look at all the images* given for the observation record. Joshua trees are big, and if a user has submitted images taken from multiple angles, you could easily find details in extra images that aren't visible in the first image.
+
+It's possible to add *multiple* values for Plant Phenology. After you add one value, you'll see that the Annotations table gains a third row, with Plant Phenology in the "Attribute" column and the blue "Select" text in the "Value" column. If you see multiple phenological stages in the same image, or in different images for the same record, you should add *all* the appropriate values to the record. (It's not at all unusual for a single tree to have both flowers and buds, for instance.)
+
+### On to the next record
+
+When you've selected a designation for the Plant Phenology attribute, you're done with the record! You should see that, down at the bottom right corner of the left-hand pane in the window, there's a check next to the word "Reviewed". That indicates that iNaturalist knows you've reviewed the record, and it won't come up in future searches for observations in need of annotation. If you don't see that box checked, make sure you check it. Our example record now looks like Figure 9.
+
+![A finalized record](/Users/jby/Documents/Academic/Active_projects/Jotr_phenology/protocol_manual/fig09_complete.png "A finalized record")
+
+You can now move on to the next record in your search results by clicking the arrow to the right of the record information window. You may find that the new record displays the "Annotations" tab, because that's what you were looking at in the previous record; switch to "Info" to start by confirming the species identity, then continue on through the annotation process above.
+
+### Keyboard shortcuts for annotation
+
+As you become more comfortable with the different phenological stages of Joshua trees and making identifications from the images in iNaturalist records, you may find that using the mouse is a little cumbersome. You can move through things faster with keyboard shortcuts. You can see the list of shortcuts by clicking on the little keyboard icon in the bottom left of the observation record window, or consult them here:
+
+*In the observation record screen*
+
+- `x` --- Organism Appears Captive / Cultivated
+- `r` --- Mark As Reviewed
+- `c` --- Comment
+- `a` --- Agree
+- `i` --- Add ID
+- `f` --- Add to Favorites
+- `z` --- Zoom Photo
+- `←` --- Previous Observation
+- `→` --- Next Observation
+- `SHIFT + ←` --- Previous Tab
+- `SHIFT + →` --- Next Tab
+- `ALT/CMD + ←` --- Previous Photo
+- `ALT/CMD + →` --- Next Photo
+- `?` --- Show Keyboard Shortcuts
+
+*On the "Annotations" tab*
+
+- `p` then `n` --- Add "Plant Phenology: No Evidence of Flowering" annotation
+- `p` then `l` --- Add "Plant Phenology: Flowering" annotation
+- `p` then `r` --- Add "Plant Phenology: Fruiting" annotation
+- `p` then `u` --- Add "Plant Phenology: Flower Budding" annotation
+
+Using shortcuts you can work through a lot of records quite quickly, if you're comfortable with "touch-typing" on your keyboard.
+
+
+That's it!
+----------
+
+You can continue annotating as long as you have time to --- this is the magic of "community science" platforms like iNaturalist. The iNaturalist database will keep track of which records you've reviewed, so there's no need to formally save anything. Your work is retained as soon as you enter annotations, and see the "Reviewed" box is checked in the record window. If you keep the window with the observation record open, you can continue to work through the original list of search results at a later time, or you can sign out of iNaturalist and resume by running a new search for records in need of annotation.
