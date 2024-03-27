@@ -1,10 +1,10 @@
 # Analyzing predicted historical flowering 
-# jby 2024.02.16
+# jby 2024.03.27
 
 # starting up ------------------------------------------------------------
 
-# setwd("~/Documents/Active_projects/Jotr_phenology")
-# setwd("~/Documents/Academic/Active_projects/Jotr_phenology")
+# setwd("~/Documents/Active_projects/flower_prediction")
+# setwd("~/Documents/Academic/Active_projects/flower_prediction")
 
 library("tidyverse")
 
@@ -14,20 +14,19 @@ library("sf")
 library("hexbin")
 library("embarcadero")
 
-source("../shared/Rscripts/base.R") # my special mix of personal functions
-source("../shared/Rscripts/base_graphics.R") # my special mix of personal functions
-
 #-------------------------------------------------------------------------
 # Load and prep data
 
-sdm.pres <- read_sf("../data/Yucca/Jotr_SDM2023_range/Jotr_SDM2023_range.shp")
+# set parameters as variables
+taxon <- 53405 # toyon!
+# Prunus ilicifolia = 57250
+
+sdm.pres <- read_sf("../data/Yucca/Jotr_SDM2023_range/Jotr_SDM2023_range.shp") # this is for Joshua tree
 
 # flowering observation data
-obs <- read.csv("output/flowering_obs_climate_subsp.csv") %>% mutate(y2 = year) %>% mutate(year=floor(year), type = factor(type, c("YUBR", "YUJA")))
-
+obs <- read.csv(paste("output/flowering_obs_climate_", taxon, ".csv", sep=""))
 # raster files of predicted prFL
-jotr.files <- list.files("output/BART/predictions", pattern=".bil", full=TRUE)
-jotr.ri.files <- list.files("output/BART/RI.predictions", pattern=".bil", full=TRUE)
+pred.files <- list.files(paste("output/BART/predictions_", taxon, sep=""), pattern=".bil", full=TRUE)
 
 # useful bits and bobs
 MojExt <- extent(-119, -112, 33, 40) # Mojave extent, maybe useful
@@ -139,7 +138,7 @@ mean(flyrs$flyrs_RI_change) # mean 0.22
 ggplot(flyrs, aes(x=flyrs_1900_1929)) + geom_histogram(bins=30)
 ggplot(flyrs, aes(x=flyrs_1990_2019)) + geom_histogram(bins=30)
 
-# plot flowering years on a map
+# distributions of flowering years
 {cairo_pdf("output/figures/flowering-years_jotr.pdf", width=3.5, height=2.5)
 
 ggplot(flyrs.jotr, aes(x=flyrs_all)) + geom_histogram(fill="#ccece6") + labs(x="Projected flowering years, 1900-2022", y="Grid cells") + 
@@ -150,3 +149,53 @@ theme_minimal() + theme(legend.position="none", plot.margin=margin(0.1,0.15,0.1,
 
 }
 dev.off()
+
+
+# maps
+# map elements
+sdm.pres <- read_sf("../data/Yucca/Jotr_SDM2023_range/Jotr_SDM2023_range.shp")
+
+states <- read_sf(dsn = "../data/spatial/10m_cultural/", lay= "ne_10m_admin_1_states_provinces")
+coast <- read_sf("../data/spatial/10m_physical/ne_10m_coastline", "ne_10m_coastline")
+
+
+flrfrq_map <- ggplot() + 
+	geom_sf(data=coast, color="slategray2", linewidth=2.5) + 
+	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
+	
+	geom_tile(data=flyrs.jotr, aes(x=lon, y=lat, fill=flyrs_all/123)) + 
+	
+	scale_fill_distiller(type="seq", palette="Greens", direction=1, name="Flowering frequency,\n1900-2022", breaks=c(0,0.25,0.5)) + labs(x="Longitude", y="Latitude") + 
+		
+	coord_sf(xlim = c(-119.5, -112), ylim = c(33.5, 38.3), expand = FALSE) +
+	
+	theme_minimal(base_size=9) + theme(legend.position="bottom", legend.key.width=unit(0.15, "inches"), legend.key.height=unit(0.1, "in"), axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=8), legend.title=element_text(size=9), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
+
+
+{cairo_pdf("output/figures/flfrq_map_jotr.pdf", width=5, height=5)
+
+flrfrq_map
+
+}
+dev.off()
+
+flrfrq_change <- ggplot() + 
+	geom_sf(data=coast, color="slategray2", linewidth=2.5) + 
+	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
+		
+	geom_tile(data=flyrs.jotr, aes(x=lon, y=lat, fill=flyrs_change)) + 
+		
+	scale_fill_gradient2(low="#762a83", mid="white", high="#1b7837", name="Change in flowering years,\n1990-2019 vs 1900-1929", breaks=seq(-12.5,12.5,by=2.5), labels=c("",-10,"",-5,"",0,"",5,"",10,"")) + labs(x="Longitude", y="Latitude") + 
+			
+	coord_sf(xlim = c(-119.5, -112), ylim = c(33.5, 38.3), expand = FALSE) +
+	
+	theme_minimal(base_size=9) + theme(legend.position="bottom", legend.key.width=unit(0.15, "inches"), legend.key.height=unit(0.1, "in"), axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=8), legend.title=element_text(size=9), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
+
+
+{cairo_pdf("output/figures/base_change_map_jotr.pdf", width=5, height=5)
+
+flrfrq_change
+
+} 
+dev.off()
+

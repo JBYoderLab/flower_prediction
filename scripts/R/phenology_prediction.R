@@ -1,5 +1,5 @@
 # Using BARTs to predict historical flowering in a target species
-# last used/modified jby, 2023.11.22
+# last used/modified jby, 2024.03.26
 
 # rm(list=ls())  # Clears memory of all objects -- useful for debugging! But doesn't kill packages.
 
@@ -28,14 +28,13 @@ glimpse(flow)
 #-----------------------------------------------------------
 # build species predictions from historical PRISM (let's do 1900-2022)
 
-
-# flower, with RI --------------------------------
-if(!dir.exists("output/BART/RI.predictions")) dir.create("output/BART/RI.predictions")
+# flowering, from the best trained model --------------------------------
+if(!dir.exists(paste("output/BART/predictions.", taxon, sep=""))) dir.create(paste("output/BART/predictions.", taxon, sep=""))
 
 # load the saved model developed in `phenology_modeling.R`
-flower.RImod <- read_rds(file=paste("output/BART/bart.RImodel.", taxon, ".rds", sep="")) # this now WORKS
+flr.mod <- read_rds(file=paste("output/BART/bart.model.", taxon, ".rds", sep="")) # swap in RI if needed
 
-flower.preds <- attr(flower.RImod$fit[[1]]$data@x, "term.labels")
+flower.preds <- attr(flr.mod$fit$data@x, "term.labels")
 
 # LOOP over years
 for(yr in 2010:2022){ # adjust year range based on data available
@@ -66,11 +65,11 @@ names(preds) <- c("ppt.y0q1", "tmax.y0q1", "tmin.y0q1", "vpdmax.y0q1", "vpdmin.y
 
 
 # prediction with the RI predictor (year) removed
-pred.ri0 <- predict(flower.RImod, preds[[attr(flower.RImod$fit[[1]]$data@x, "term.labels")]], splitby=20, ri.data=yr, ri.name='year', ri.pred=FALSE)
+pred.yr <- predict(flr.mod, preds[[flower.preds]], splitby=20)
 
-pred.ri0 # BOOM
+pred.yr # useful confirmation if you're doing a single test year
 
-writeRaster(pred.ri0, paste("output/BART/RI.predictions/BART_RI_predicted_flowering_",yr,".bil", sep=""), overwrite=TRUE)
+writeRaster(pred.yr, paste("output/BART/predictions.", taxon, "/BART_predicted_flowering_", taxon, "_", yr, ".bil", sep=""), overwrite=TRUE)
 
 } # END loop over years
 

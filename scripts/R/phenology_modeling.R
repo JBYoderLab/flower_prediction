@@ -1,35 +1,29 @@
 # Using BARTs to model flowering activity
 # best run on MAJEL
-# last used/modified jby, 2024.02.27
+# last used/modified jby, 2024.03.26
 
 rm(list=ls())  # Clears memory of all objects -- useful for debugging! But doesn't kill packages.
 
-# setwd("~/Documents/Active_projects/flowering_prediction")
+# setwd("~/Documents/Active_projects/flower_prediction")
 
 library("tidyverse")
 library("embarcadero")
-library("ggdark")
-
-source("../shared/Rscripts/base_graphics.R")
 
 #-----------------------------------------------------------
 # initial file loading
-
-# flow <- read.csv("output/flowering_obs_climate.csv") # flowering/not flowering, gridded and annualized
-# flow <- read.csv("output/flowering_obs_climate_normed.csv") # flowering/not flowering, gridded and annualized and normed
 
 # set parameters as variables
 taxon <- 53405 # toyon!
 # Prunus ilicifolia = 57250
 
-flow <- read.csv(paste("output/flowering_obs_climate_", taxon, ".csv", sep="")) %>% filter(!is.na(ppt.y0q1)) # flowering/not flowering, biologically-informed candidate predictors, subspecies id'd
+flow <- read.csv(paste("output/flowering_obs_climate_", taxon, ".csv", sep="")) %>% filter(!is.na(ppt.y0q1)) # flowering/not flowering, biologically-informed candidate predictors
 
 dim(flow)
 glimpse(flow)
 
 
 #-------------------------------------------------------------------------
-# fit candidate BART models, stepwise
+# fit candidate BART models
 
 if(!dir.exists("output/BART")) dir.create("output/BART")
 
@@ -39,16 +33,18 @@ xnames <- c("ppt.y0q1", "tmax.y0q1", "tmin.y0q1", "vpdmax.y0q1", "vpdmin.y0q1", 
 # variable importance across the whole predictor set
 flow.varimp <- varimp.diag(y.data=as.numeric(flow[,"flr"]), x.data=flow[,xnames], ri.data=flow[,"year"])
 
+write_rds(flow.varimp, file=paste("output/BART/bart.varimp.", taxon, ".rds", sep="")) # save varimp() results
+# flow.varimp <- read_rds(file=paste("output/BART/bart.varimp.", taxon, ".rds", sep=""))
+
 # enter based on results of varimp.diag()
-preds <- c("ppt.y1q3", "vpdmin.y1q3", "tmin.y1q4", "ppt.y1q4", "tmax.y0q1", "vpdmin.y1q4", "vpdmax.y1q3")
+preds <- c("ppt.y1q3", "vpdmax.y0q1", "vpdmin.y1q4", "tmax.y0q1", "tmin.y1q4", "ppt.y1q4")
 
-write_rds(flow.varimp, file=paste("output/BART/bart.varimp.", taxon, ".rds", sep=""))
-
-# variable selection, stepwise
+# AND/OR stepwise model training to confirm selection ............
 flr.mod.step <- bart.step(y.data=as.numeric(flow[,"flr"]), x.data=flow[,xnames], ri.data=flow[,"year"], full=FALSE, quiet=TRUE)
 
 invisible(flr.mod.step$fit$state)
-write_rds(flr.mod.step, file=paste("output/BART/bart.step.models.", taxon, ".rds", sep=""))
+write_rds(flr.mod.step, file=paste("output/BART/bart.step.models.", taxon, ".rds", sep="")) # save stepwise model
+# flr.mod.step <- read_rds(file=paste("output/BART/bart.step.models.", taxon, ".rds", sep=""))
 
 summary(flr.mod.step) # note predictors selected this way, compare to varimp() output
 
@@ -56,11 +52,11 @@ summary(flr.mod.step) # note predictors selected this way, compare to varimp() o
 # standard model with varimp() selection ..................
 flr.mod <- bart(y.train=as.numeric(flow[,"flr"]), x.train=flow[,preds], keeptrees=TRUE)
 
-summary(flr.mod)
-
 invisible(flr.mod$fit$state)
-write_rds(flr.mod, file=file=paste("output/BART/bart.model.", taxon, ".rds", sep=""))
-# jotr.mod <- read_rds(paste("output/BART/bart.model.", taxon, ".rds", sep=""))
+write_rds(flr.mod, file=paste("output/BART/bart.model.", taxon, ".rds", sep="")) # save model
+# flr.mod <- read_rds(paste("output/BART/bart.model.", taxon, ".rds", sep=""))
+
+summary(flr.mod) # AUC reflects classification accuracy, how's that look?
 
 p <- partial(flr.mod, preds, trace=FALSE, smooth=5) # visualize partials
 varimp(flr.mod)
@@ -82,9 +78,11 @@ flr.RImod <- rbart_vi(as.formula(paste(paste('flr', paste(preds, collapse=' + ')
 summary(flr.RImod)
 
 invisible(flr.RImod$fit[[1]]$state) # MUST do this to save
-write_rds(flr.RImod, file=paste("output/BART/bart.RImodel.", taxon, ".rds", sep="")) # write out for downstream use
+write_rds(flr.RImod, file=paste("output/BART/bart.RImodel.", taxon, ".rds", sep="")) # save model
+# flr.RImod <- read_rds(paste("output/BART/bart.RImodel.", taxon, ".rds", sep=""))
 
-# flr.mod <- read_rds(paste("output/BART/bart.RImodel.", taxon, ".rds", sep=""))
+# visualize RI estimates --- is there a temporal trend? If so, keep RI, otherwise stick with non-RI model
+plot.ri(flr.RImod, temporal=TRUE) + labs(title="Estimated random intercept effects of observation year", x="Observation year") + theme(axis.text.x=element_text(angle=0, size=12))
 
 
 #-------------------------------------------------------------------------
@@ -105,4 +103,8 @@ facet_wrap("Predictor", nrow=1, scale="free_y") + labs(x="Flowers observed?", y=
 }
 dev.off()
 
+#-------------------------------------------------------------------------
+# plot the partial effects in a nice way ...
+
+# ...
 
