@@ -1,6 +1,6 @@
 # Scraping phenology-annotated iNat observations
 # Assumes local environment 
-# jby 2024.03.26
+# jby 2024.03.27
 
 # starting up ------------------------------------------------------------
 
@@ -84,13 +84,51 @@ table(inat_pheno_data$year, inat_pheno_data$phenology) # breakdown by phenophase
 
 
 #-------------------------------------------------------------------------
+# Data cleaning
+
+library("rnaturalearth")
+library("rnaturalearthdata")
+library("CoordinateCleaner")
+
+# inat_pheno_data <- read.csv(paste("data/inat_phenology_data_", taxon, ".csv", sep=""), h=TRUE)
+to_clean <- inat_pheno_data %>% filter(!is.na(latitude)) %>% rename(decimallongitude=longitude, decimallatitude=latitude)
+
+glimpse(to_clean)
+
+# establishing an extent (note the padding adjustment will have to change for different hemispheres)
+to_clean_ext <- round(c(range(to_clean$decimallongitude), range(to_clean$decimallatitude)) * c(1.01,0.99,0.99,1.01),2)
+
+# first, map the records we've got so far
+ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = "sf")) + 
+  geom_point(data=to_clean, aes(x=decimallongitude, y=decimallatitude)) +
+  coord_sf(xlim = to_clean_ext[1:2], ylim = to_clean_ext[3:4], expand = TRUE)
+
+# now let's do some automated cleaning
+# you may also want to add filters based on a priori knowledge of the distribution!
+cleaned <- to_clean %>%
+  cc_cen(lon="decimallongitude", lat="decimallatitude", buffer = 2000) %>% # remove country centroids within 2km 
+  cc_cap(lon="decimallongitude", lat="decimallatitude", buffer = 2000) %>% # remove capitals centroids within 2km
+  cc_inst(lon="decimallongitude", lat="decimallatitude", buffer = 2000) %>% # remove zoo and herbaria within 2km 
+  cc_sea(lon="decimallongitude", lat="decimallatitude") %>% # remove from ocean --- risky if species is coastal!
+  distinct(decimallongitude,decimallatitude, .keep_all = TRUE) 
+
+glimpse(cleaned) # how does this compare to the original?
+
+ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = "sf")) + 
+  geom_point(data=cleaned, aes(x=decimallongitude, y=decimallatitude)) +
+  coord_sf(xlim = to_clean_ext[1:2], ylim = to_clean_ext[3:4], expand = TRUE)
+
+write.table(cleaned, paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE, quote=FALSE)
+
+
+#-------------------------------------------------------------------------
 # visualize, if you like
 
 # if it's not already in memory ...
-inat_pheno_data <- read.csv(paste("data/inat_phenology_data_", taxon, ".csv", sep=""), h=TRUE)
+cleaned <- read.csv(paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), h=TRUE)
 
 # summary for image
-flr.raw.ln <- table(inat_pheno_data$year, inat_pheno_data$phenology) %>% as.data.frame() %>% rename(year=Var1, phenology=Var2, observations=Freq)
+flr.raw.ln <- table(cleaned$year, cleaned$phenology) %>% as.data.frame() %>% rename(year=Var1, phenology=Var2, observations=Freq)
 
 if(!file.exists("output")) dir.create("output") # make sure there's a folder to write to!
 if(!file.exists("output/figures")) dir.create("output/figures") # make sure there's a folder to write to!
