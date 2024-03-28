@@ -19,9 +19,6 @@ prism_set_dl_dir("../data/PRISM") # system-specific; this goes to a directory sh
 taxon <- 53405 # toyon!
 # taxon <- 57250 # Prunus ilicifolia
 
-# Crop extent --- CHANGE THIS TO MATCH YOUR TARGET TAXON
-SppExt <- extent(-125, -109, 23, 42) # for toyon; need to adjust accordingly
-
 
 #-------------------------------------------------------------------------
 # Download the PRISM monthlies, if you haven't already (otherwise, skip)
@@ -41,6 +38,13 @@ get_prism_monthlys(type="vpdmin", mon=1:12, year=yr, keepZip=FALSE)
 
 #-------------------------------------------------------------------------
 # process PRISM data layers into cropped quarterly values for analysis
+
+inat <- read.csv(paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), h=TRUE)
+
+# Species area crop extent (deliberately generous)
+# note the padding factors assume we're NW of 0,0
+SppExt <- round(c(range(inat$longitude), range(inat$latitude)) * c(1.01,0.99,0.9,1.1),0) # for toyon; need to adjust accordingly
+
 
 # make a place to stash files --- note taxon specificity, because of extent crop
 if(!dir.exists(paste("data/PRISM/annual.", taxon, sep=""))) dir.create(paste("data/PRISM/annual.", taxon, sep=""))

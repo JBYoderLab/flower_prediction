@@ -91,38 +91,37 @@ library("rnaturalearthdata")
 library("CoordinateCleaner")
 
 # inat_pheno_data <- read.csv(paste("data/inat_phenology_data_", taxon, ".csv", sep=""), h=TRUE)
-to_clean <- inat_pheno_data %>% filter(!is.na(latitude)) %>% rename(decimallongitude=longitude, decimallatitude=latitude)
+to_clean <- inat_pheno_data %>% filter(!is.na(latitude)) 
 
 glimpse(to_clean)
 
 # establishing an extent (note the padding adjustment will have to change for different hemispheres)
-to_clean_ext <- round(c(range(to_clean$decimallongitude), range(to_clean$decimallatitude)) * c(1.01,0.99,0.99,1.01),2)
+to_clean_ext <- round(c(range(to_clean$longitude), range(to_clean$latitude)) * c(1.01,0.99,0.99,1.01),2)
 
 # first, map the records we've got so far
 ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = "sf")) + 
-  geom_point(data=to_clean, aes(x=decimallongitude, y=decimallatitude)) +
+  geom_point(data=to_clean, aes(x=longitude, y=latitude)) +
   coord_sf(xlim = to_clean_ext[1:2], ylim = to_clean_ext[3:4], expand = TRUE)
 
 # now let's do some automated cleaning
 # you may also want to add filters based on a priori knowledge of the distribution!
 cleaned <- to_clean %>%
-  cc_cen(lon="decimallongitude", lat="decimallatitude", buffer = 2000) %>% # remove country centroids within 2km 
-  cc_cap(lon="decimallongitude", lat="decimallatitude", buffer = 2000) %>% # remove capitals centroids within 2km
-  cc_inst(lon="decimallongitude", lat="decimallatitude", buffer = 2000) %>% # remove zoo and herbaria within 2km 
-  cc_sea(lon="decimallongitude", lat="decimallatitude") %>% # remove from ocean --- risky if species is coastal!
-  distinct(decimallongitude,decimallatitude, .keep_all = TRUE) 
+  cc_cen(lon="longitude", lat="latitude", buffer = 2000) %>% # remove country centroids within 2km 
+  cc_cap(lon="longitude", lat="latitude", buffer = 2000) %>% # remove capitals centroids within 2km
+  cc_inst(lon="longitude", lat="latitude", buffer = 2000) %>% # remove zoo and herbaria within 2km 
+  cc_sea(lon="longitude", lat="latitude") %>% # remove from ocean --- risky if species is coastal!
+  distinct(longitude,latitude, .keep_all = TRUE) 
 
 glimpse(cleaned) # how does this compare to the original?
 
 ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = "sf")) + 
-  geom_point(data=cleaned, aes(x=decimallongitude, y=decimallatitude)) +
+  geom_point(data=cleaned, aes(x=longitude, y=latitude)) +
   coord_sf(xlim = to_clean_ext[1:2], ylim = to_clean_ext[3:4], expand = TRUE)
 
 write.table(cleaned, paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE, quote=FALSE)
 
-
 #-------------------------------------------------------------------------
-# visualize, if you like
+# visualize phenophase records by year
 
 # if it's not already in memory ...
 cleaned <- read.csv(paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), h=TRUE)
@@ -130,8 +129,7 @@ cleaned <- read.csv(paste("data/inat_phenology_data_", taxon, "_cleaned.csv", se
 # summary for image
 flr.raw.ln <- table(cleaned$year, cleaned$phenology) %>% as.data.frame() %>% rename(year=Var1, phenology=Var2, observations=Freq)
 
-if(!file.exists("output")) dir.create("output") # make sure there's a folder to write to!
-if(!file.exists("output/figures")) dir.create("output/figures") # make sure there's a folder to write to!
+if(!dir.exists("output/figures")) dir.create("output/figures", recursive=TRUE) # make sure there's a folder to write to!
 
 # generate and write out a figure summarizing records by year and phenophase
 {cairo_pdf(paste("output/figures/iNat_obs_raw_", taxon, ".pdf", sep=""), width=6, height=4)
