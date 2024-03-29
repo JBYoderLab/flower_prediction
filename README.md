@@ -52,7 +52,8 @@ Some of these steps can be skipped once data is downloaded/organized, but to per
 1. First use `inat_phenology_download.R` to download iNaturalist observations with phenophase annotated;
 2. Use `PRISM_data-management.R` to download spatially interpolated weather data at 4km resolution and process it into quarterly aggregates;
 3. Use `inat_phenology_data-management.R` to match the iNat observations to weather results for the years leading up to each observation;
+3.5 (optional) You will want a species range polygon to do some of the downstream analysis --- a very simplified version of this is possible with the data you've already got on hand, and `basic_SDM.R` provides code for that;
 4. Use `phenology_modeling.R` to evaluate and train a BART model predicting flowering status with weather data; 
 5. Use `phenology_prediction.R` with the resulting model to predict what flowering was like in years when we have weather data but no iNaturalist observations;
-6. Finally, use `historic_flowering_analysis.R` to visualize and analyze the reconstructed flowering history
+6. Finally, use `flowering_years.R` to visualize and analyze the reconstructed flowering history
 
