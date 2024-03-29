@@ -22,6 +22,7 @@ Subfolders in the repository and their contents:
 - `scripts` --- all project scripts
 	- `R` --- all R scripts
 		- `get_inat.R` --- script to load [`rinat`](https://cran.r-project.org/web/packages/rinat/index.html) and modify the `get_inat` function to allow searches on phenology state annotation.
+		- `basic_SDM.R` --- script to use iNat records to build a species distribution polygon, which is necessary for later-stage analyses. This is a simplified, rough approach, which may not produce publication-quality results --- you may way to use an independently derived SDM polygon if you have it!
 		- `inat_phenology_download.R` --- script to use `get_inat.R` to download phenology-annotated observations using the iNaturalist API, clean them up for downstream analysis, and visualize this initial data. Creates:
 			- `data/inat_phenology_data_[taxon code].csv` --- iNat records for the taxon with numeric id `[taxon code]`
 			- `data/inat_phenology_data_[taxon code]_cleaned.csv` --- the above, cleaned using utilities in the [`CoordinateCleaner`](https://ropensci.github.io/CoordinateCleaner/)
@@ -31,7 +32,7 @@ Subfolders in the repository and their contents:
 			- `output/flowering_obs_climate_[taxon code].csv` (the above with PRISM data)
 		- `phenology_modeling.R` --- modeling annualized, rasterized observations of flowering (or no flowering) predicted with weather data using Bayesian additive regression tree (BART) methods. Saves modeling objects to `output/BART` as `rds` files with the `[taxon code]` numeric id tag
 		- `phenology_prediction.R` --- uses the BART model trained in  `phenology_modeling.R` to predict flowering from PRISM data for 1900-present, output as annual spatial layers to `output/BART/predictions.[taxon code]`
-		- `historic_flowering_analysis.R` --- analysis of the historic flowering prediction from `phenology_modeling.R`
+		- `flowering_years.R` --- analysis of the historic flowering predictions from `phenology_modeling.R`
 
 The following subfolders are generated in the course of running the pipeline, but they are not part of the version-controlled repository:
 
