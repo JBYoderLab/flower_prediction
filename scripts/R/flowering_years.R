@@ -148,7 +148,27 @@ flrfrq_map
 }
 dev.off()
 
-flrfrq_change <- 
+flrfrq_change <- <- ggplot() + 
+	geom_sf(data=coast, color="slategray2", linewidth=2.5) + 
+	geom_sf(data=countries, fill="antiquewhite3", color="antiquewhite4") + 
+	geom_sf(data=states, fill="antiquewhite2", color="antiquewhite4") + 
+	
+	geom_tile(data=flyrs, aes(x=lon, y=lat, fill=flyrs_change)) + 
+	
+	scale_fill_distiller(type="seq", palette="Greens", direction=1, name="Flowering frequency,\n1900-2023", breaks=c(0,0.25,0.5)) + labs(x="Longitude", y="Latitude") + 
+		
+	coord_sf(xlim = SppExt[1:2], ylim = SppExt[3:4], expand = FALSE) +
+	
+	theme_minimal(base_size=9) + theme(legend.position="bottom", legend.key.width=unit(0.15, "inches"), legend.key.height=unit(0.1, "in"), axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=8), legend.title=element_text(size=9), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
+
+
+{cairo_pdf(paste("output/figures/flfrq_change_", taxon, ".pdf", sep=""), width=5, height=5)
+
+flrfrq_change
+
+}
+dev.off()
+
 
 
 
