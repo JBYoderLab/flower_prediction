@@ -1,6 +1,6 @@
 # working with PRISM historical monthlys
 # Assumes local environment 
-# jby 2024.03.26
+# jby 2024.09.16
 
 # starting up ------------------------------------------------------------
 

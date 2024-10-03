@@ -18,7 +18,7 @@ source("scripts/R/get_inat.R") # attaches rinat and hacks the key function
 # Prunus ilicifolia: 57250
 # Ericameria nauseosa: 57934
 
-taxon <- 53405 
+taxon <- 57934 
 
 # per https://forum.inaturalist.org/t/how-to-use-inaturalists-search-urls-wiki-part-2-of-2/18792
 # term id: 12 for Plant Phenology then term_id_value: 13 =Flowering, 14 =Fruiting, 15 =Flower Budding, 21 =No evidence of flowering

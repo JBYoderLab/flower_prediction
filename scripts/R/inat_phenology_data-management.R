@@ -1,6 +1,6 @@
 # working with phenology-annotated iNat observations
-# Assumes MAJEL environment 
-# jby 2024.03.27
+# Assumes local environment 
+# jby 2024.09.16
 
 # starting up ------------------------------------------------------------
 
@@ -15,7 +15,7 @@ library("sf")
 # set parameters as variables
 taxon <- 53405 # toyon!
 # Prunus ilicifolia: 57250
-
+# E nauseosa: 57394
 
 #-------------------------------------------------------------------------
 # read in iNat observations compiled using inat_phenology_obs.R
