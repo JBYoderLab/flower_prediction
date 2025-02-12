@@ -1,6 +1,6 @@
 # Build a species distribution polygon for downstream analyses
 # Assumes local environment
-# jby 2024.03.28
+# jby 2025.02.08
 
 # setwd("~/Documents/Active_projects/flower_prediction")
 
@@ -9,6 +9,8 @@ rm(list=ls())
 
 library("tidyverse") 
 library("raster")
+library("terra")
+library("geodata")
 library("sf")
 library("embarcadero")
 
@@ -29,7 +31,7 @@ SppExt <- round(c(range(inat$longitude), range(inat$latitude)) * c(1.01,0.99,0.9
 
 
 # BioClim normals for 19 standard "biologically relevant" climate variables
-BClim <- getData("worldclim", var="bio", res=2.5, path="data/")
+BClim <- worldclim_tile(var="bio", res=0.5, path="../data/spatial", lon=)
 
 # BClim is a raster data object, a RasterStack, with a "layer" for each of the
 # 19 BioClim variables.

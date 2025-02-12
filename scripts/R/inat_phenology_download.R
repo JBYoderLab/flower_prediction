@@ -1,6 +1,6 @@
 # Scraping phenology-annotated iNat observations
 # Assumes local environment 
-# jby 2024.03.27
+# jby 2024.10.14
 
 # starting up ------------------------------------------------------------
 
@@ -18,7 +18,7 @@ source("scripts/R/get_inat.R") # attaches rinat and hacks the key function
 # Prunus ilicifolia: 57250
 # Ericameria nauseosa: 57934
 
-taxon <- 57934 
+taxon <- 53405 
 
 # per https://forum.inaturalist.org/t/how-to-use-inaturalists-search-urls-wiki-part-2-of-2/18792
 # term id: 12 for Plant Phenology then term_id_value: 13 =Flowering, 14 =Fruiting, 15 =Flower Budding, 21 =No evidence of flowering
@@ -26,7 +26,7 @@ taxon <- 57934
 
 
 # trial run, to make sure it works as expected
-test <- get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_value_id=14, year=2021, maxresults=1e4)
+test <- get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_value_id=14, year=2021, maxresults=1e4) %>% filter(captive_cultivated=="false", positional_accuracy<1000)
 
 glimpse(test)
 
@@ -58,16 +58,16 @@ non.y <- try(get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_v
 Sys.sleep(5)  
 
 
-if(class(bud.y)=="data.frame") bud.o <- bud.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flower Budding", year=gsub("(\\d{4})-.+","\\1", observed_on)) else bud.o <- NULL
+if(class(bud.y)=="data.frame") bud.o <- bud.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flower Budding", year=gsub("(\\d{4})-.+","\\1", observed_on)) else bud.o <- NULL
 
-if(class(flo.y)=="data.frame") flo.o <- flo.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else flo.o <- NULL
+if(class(flo.y)=="data.frame") flo.o <- flo.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else flo.o <- NULL
 
-if(class(fru.y)=="data.frame") fru.o <- fru.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Fruiting", year=gsub("(\\d{4})-.+","\\1", observed_on)) else fru.o <- NULL
+if(class(fru.y)=="data.frame") fru.o <- fru.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Fruiting", year=gsub("(\\d{4})-.+","\\1", observed_on)) else fru.o <- NULL
 
-if(class(non.y)=="data.frame") non.o <- non.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="No Evidence of Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else non.o <- NULL
+if(class(non.y)=="data.frame") non.o <- non.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="No Evidence of Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else non.o <- NULL
 
 
-inat_pheno_data <- rbind(inat_pheno_data, bud.o, flo.o, fru.o, non.o)
+inat_pheno_data <- rbind(inat_pheno_data, bud.o, flo.o, fru.o, non.o) 
 
 
 if(!file.exists("data")) dir.create("data") # make sure there's a folder to write to!
