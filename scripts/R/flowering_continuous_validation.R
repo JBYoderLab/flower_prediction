@@ -1,5 +1,5 @@
 # Analyzing predicted historical flowering 
-# jby 2025.05.19
+# jby 2025.05.22
 
 # starting up ------------------------------------------------------------
 
@@ -52,30 +52,74 @@ broad.Range
 
 plot(broad.Range)
 
-#-------------------------------------------------------------------------
-# Process prediction layers
-
-historic.preds <- sapply(pred.files, simplify=TRUE, function(x) crop(rast(x), SppExt)) # read in prediction layers, crop to the species extent to reduce data volume later
-historic.stack <- rast(historic.preds)
-names(historic.stack) <- paste("prFL", 1900:2024, sep=".") # name the layers by year
-
-historic.stack # what's this look like
-
-writeRaster(historic.stack, paste("output/models/DART_predicted_flowering_", taxon, "_1900-2024_nomask.tiff", sep=""), overwrite=TRUE) # write out the cropped stack as a single raster file
-
-# mask to the SDM polygon
-historic.stack.masked <- mask(historic.stack, st_transform(broad.Range, crs=4326), touches=TRUE)
-historic.stack.masked.usfs <- mask(historic.stack, st_transform(usfs.buff, crs=4326), touches=TRUE)
-
-writeRaster(historic.stack.masked, paste0("output/models/DART_predicted_flowering_", taxon, "_1900-2024_masked.tiff"), overwrite=TRUE) # write out the masked layers as a single raster file
-
-writeRaster(historic.stack.masked.usfs, paste0("output/models/DART_predicted_flowering_", taxon, "_1900-2024_masked_to_range.tiff"), overwrite=TRUE) # write out the masked layers as a single raster file
-
-
-# read back in
+# Read in prediction layers
 historic.stack.masked <- rast(paste0("output/models/DART_predicted_flowering_", taxon, "_1900-2024_masked.tiff"))
 
 historic.stack.masked.usfs <- rast(paste0("output/models/DART_predicted_flowering_", taxon, "_1900-2024_masked_to_range.tiff"))
+
+
+
+#-------------------------------------------------------------------------
+# USA-NPN data
+
+npn <- read.csv("data/datasheet_1747853116605/status_intensity_observation_data.csv") %>% mutate(Year = year(ymd(npn$Observation_Date)), Month=month(ymd(npn$Observation_Date)))
+
+glimpse(npn)
+
+# what do we have?
+table(npn$Site_ID, npn$Year) 
+# okay a LOT of sites, actually; decent temporal cover also
+
+npn_by_year_loc <- npn %>% group_by(Latitude, Longitude, Year) %>% summarize(Nobs = n())
+
+npn_by_year_loc
+
+# map this ------------------------------------------------
+library("rnaturalearth")
+library("rnaturalearthdata")
+library("ggspatial")
+
+# map elements
+states <- ne_states(country="united states of america", returnclass="sf")
+countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
+coast <- ne_coastline(scale=10, returnclass="sf")
+
+	
+ggplot() + 
+	geom_sf(data=coast, color="slategray2", linewidth=3) + 
+	geom_sf(data=countries, fill="cornsilk3", color="antiquewhite4") + 
+	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
+
+	geom_sf(data=states, fill=NA, color="antiquewhite4") + 
+	
+	geom_sf(data=usfs.buff, fill="darkseagreen", color=NA) + 
+
+	geom_point(data=npn_by_year_loc, aes(x=Longitude, y=Latitude, color=Year)) + 
+	
+	annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
+	annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
+	
+#	scale_fill_discrete(low="#e5f5f9", high="#2ca25f", name="Mean Pr(flowers),\n1900-2024", breaks=c(0.7,0.8,0.9)) + 
+	labs(x="Longitude", y="Latitude") + 
+		
+	coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
+	annotation_scale(location = "bl", width_hint = 0.3) + 
+	annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
+	
+	theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"), legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
+
+
+#-------------------------------------------------------------------------
+# aggregate into flowering intensity per year/site
+
+# create a "flowering year" variable that wraps early-year observations of fruit into the previous year
+npn$flr_yr <- npn$Year
+npn$flr_yr[npn$Phenophase_=="Fruiting" & month(inat$observed_on)<6] <- inat$year[inat$phenology=="Fruiting" & month(inat$observed_on)<6]-1
+
+glimpse(inat)
+
+
+npn_site_intensity <- npn %>% group_by(Latitude, Longitude, Year, Month, Individual_ID) %>% summarize(Fruit = any(Phenophase_Name %in% c("Fruits", "Recent fruit drop", "Recent fruit or seed drop", "Ripe fruits")), Totobs = n())
 
 #-------------------------------------------------------------------------
 # pair with relevant info, reformat for analysis

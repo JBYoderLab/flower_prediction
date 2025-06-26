@@ -27,6 +27,9 @@ glimpse(flow)
 table(flow$year, flow$prop_flr>0)
 hist(flow$prop_flr)
 
+SppExt <- round(c(range(flow$lon), range(flow$lat)) * c(1.05,0.95,0.95,1.05),0) # for toyon; need to adjust accordingly
+
+
 
 #-----------------------------------------------------------
 # build species predictions from historical PRISM layers
@@ -43,7 +46,7 @@ flower.preds <- strsplit(gsub(".+~ (.+)", "\\1", flr.mod$formula), split="\\+")[
 flower.preds
 
 # LOOP over years ---------------------------------------------------
-for(yr in 1900:2023){ # adjust year range based on data available
+for(yr in 1900:2024){ # adjust year range based on data available
 
 # yr <- 2015
 
@@ -69,16 +72,18 @@ preds <- c(
 	)
 names(preds) <- c("ppt.y0q1", "tmax.y0q1", "tmin.y0q1", "vpdmax.y0q1", "vpdmin.y0q1", "ppt.y1q4", "tmax.y1q4", "tmin.y1q4", "vpdmax.y1q4", "vpdmin.y1q4", "ppt.y1q3", "tmax.y1q3", "tmin.y1q3", "vpdmax.y1q3", "vpdmin.y1q3")
 
+preds.crop <- crop(preds, SppExt)
+
 # predictor dataframe from raster layers
-preds.df <- as.data.frame(preds[[flower.preds]])
+preds.df <- as.data.frame(preds.crop[[flower.preds]])
 
 # make a NaN vector of length ncell(stanRas)
-pred.vect.mu_mean <- rep(NaN, ncell(stanRas))
+pred.vect.mu_mean <- rep(NaN, ncell(preds.crop[[1]]))
 # insert prediction values at positions where stanRas has non-NaNs
-pred.vect.mu_mean[which(!is.nan(values(stanRas)))] <- predict(object=flr.mod, newdata=data.frame(prop_flr=0, preds.df))$mu_mean
+pred.vect.mu_mean[which(!is.nan(values(preds.crop[[1]])))] <- predict(object=flr.mod, newdata=data.frame(prop_flr=0, preds.df))$mu_mean
 
 # convert it into a SpatRaster
-pred.rast.mu_mean <- rast(ncol=ncol(stanRas), nrow=nrow(stanRas), crs=crs(stanRas), extent=ext(stanRas), vals=pred.vect.mu_mean)
+pred.rast.mu_mean <- rast(ncol=ncol(preds.crop[[1]]), nrow=nrow(preds.crop[[1]]), crs=crs(preds.crop[[1]]), extent=ext(preds.crop[[1]]), vals=pred.vect.mu_mean)
 
 # pred.rast.mu_mean
 # plot(pred.rast.mu_mean) # helllll yeah

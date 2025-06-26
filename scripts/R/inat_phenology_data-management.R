@@ -1,6 +1,6 @@
 # working with phenology-annotated iNat observations
 # Assumes local environment 
-# jby 2024.10.15
+# jby 2025.05.21
 
 # starting up ------------------------------------------------------------
 
@@ -36,6 +36,8 @@ filter(inat, phenology=="Fruiting", month(observed_on)<6) # if this is not zero,
 # create a "flowering year" variable that wraps early-year observations of fruit into the previous year
 inat$flr_yr <- inat$year
 inat$flr_yr[inat$phenology=="Fruiting" & month(inat$observed_on)<6] <- inat$year[inat$phenology=="Fruiting" & month(inat$observed_on)<6]-1
+
+glimpse(inat)
 
 
 #-------------------------------------------------------------------------
@@ -75,7 +77,7 @@ hist(flowering$n_obs)
 
 
 write.table(flowering, paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE)
-flowering <- read.csv(paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""))
+# flowering <- read.csv(paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""))
 
 #-------------------------------------------------------------------------
 # attach PRISM data to flowering/not flowering observations
@@ -111,7 +113,7 @@ flsub <- cbind(flsub, terra::extract(preds, flsub[,c("lon","lat")], df=FALSE))
 
 flr.clim <- rbind(flr.clim,flsub) 
 
-write.table(flr.clim, paste("output/flowering_freq_climate_", taxon, ".csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE)
+write.table(flr.clim, paste0("output/flowering_freq_climate_", taxon, ".csv"), sep=",", col.names=TRUE, row.names=FALSE)
 
 cat("Done with year", yr, "\n")
 
@@ -124,27 +126,61 @@ glimpse(flr.clim)
 # and that's generated a data file we can feed into embarcadero ... in the next script!
 
 #-------------------------------------------------------------------------
-# map binary records
+# map gridded records
+
+flr.clim <- read.csv(paste0("output/flowering_freq_climate_", taxon, ".csv"))
+glimpse(flr.clim)
+
+flr.clim.summed <- flr.clim %>% group_by(lat, lon) %>% summarize(tot_obs = sum(n_obs))
+glimpse(flr.clim.summed)
 
 library("rnaturalearth")
 library("rnaturalearthdata")
+library("ggspatial")
+library("sf")
 
-# read data back in, if necessary
-flr.clim <- read.csv(paste("output/flowering_freq_climate_", taxon, ".csv", sep=""))
+# map elements
+states <- ne_states(country="united states of america", returnclass="sf")
+countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
+coast <- ne_coastline(scale=10, returnclass="sf")
 
-SppExt <- round(c(range(flr.clim$lon), range(flr.clim$lat)) * c(1.01,0.99,0.95,1.05),0) 
+# get the USFS range polygon for toyon
+usfs.Range <- read_sf("../data/spatial/wpetry-USTreeAtlas-4999258/shp/photarbu/", layer="photarbu", crs=4326)
+usfs.buff <- st_transform(st_buffer(st_transform(usfs.Range, crs=3857), 10000), crs=4326) %>% st_intersection(filter(ne_countries(scale=10, continent="north america", returnclass="sf"), name_en=="United States of America")) # 10km buffer?
 
-# map gridded, binary records
-{cairo_pdf(paste("output/flowering_obs_all_years_", taxon, ".pdf", sep=""), width=4, height=6)
 
-ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = "sf")) + 
-	geom_point(data=flr.clim, aes(x=lon, y=lat, color=flr, shape=flr)) +
-	scale_shape_manual(values=c(21,20), name="Flowering") +
-	scale_color_manual(values=c("#e31a1c","#a6cee3"), name="Flowering") +
-	coord_sf(xlim = SppExt[1:2], ylim = SppExt[3:4], expand = TRUE) +
-	theme_bw() + theme(legend.position="inside", legend.position.inside=c(0.7,0.9), axis.title=element_blank())
+{cairo_pdf(paste("output/figures/record_distribution_map_", taxon, ".pdf", sep=""), width=3.2, height=4.5)
+
+ggplot() + 
+
+geom_sf(data=coast, color="slategray2", linewidth=3) + 
+geom_sf(data=countries, fill="antiquewhite4", color="antiquewhite4") + 
+geom_sf(data=states, fill="darkseagreen3", color="antiquewhite4") + 
+#geom_sf(data=filter(states, name=="California"), fill="cornsilk3", color="antiquewhite4") + 
+
+geom_sf(data=usfs.buff, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) + 
+
+geom_tile(data=flr.clim.summed, aes(x=lon, y=lat, fill=log10(tot_obs))) + 
+
+geom_sf(data=states, fill=NA, color="antiquewhite4") + 
+	
+annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
+annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
+annotate("text", x=-117.9, y=35.1, label="Core range", size=4, fontface="bold", color="darkseagreen4") + 
+
+	
+scale_fill_gradient(low="#fde0dd", high="#49006a", name=expression(log[10]("iNat records")), breaks=c(0,1,2)) + 
+labs(x="Longitude", y="Latitude") + 
+		
+coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
+annotation_scale(location = "bl", width_hint = 0.3) + 
+annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
+	
+theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"), legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.01,0.1,0.01,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
 
 }
 dev.off()
+
+
 
 
