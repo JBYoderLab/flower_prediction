@@ -1,6 +1,6 @@
 # Scraping phenology-annotated iNat observations
 # Assumes local environment 
-# jby 2024.03.27
+# jby 2025.05.08
 
 # starting up ------------------------------------------------------------
 
@@ -18,7 +18,7 @@ source("scripts/R/get_inat.R") # attaches rinat and hacks the key function
 # Prunus ilicifolia: 57250
 # Ericameria nauseosa: 57934
 
-taxon <- 57934 
+taxon <- 53405 
 
 # per https://forum.inaturalist.org/t/how-to-use-inaturalists-search-urls-wiki-part-2-of-2/18792
 # term id: 12 for Plant Phenology then term_id_value: 13 =Flowering, 14 =Fruiting, 15 =Flower Budding, 21 =No evidence of flowering
@@ -26,7 +26,7 @@ taxon <- 57934
 
 
 # trial run, to make sure it works as expected
-test <- get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_value_id=14, year=2021, maxresults=1e4)
+test <- get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_value_id=14, year=2021, maxresults=1e4) %>% filter(captive_cultivated=="false", positional_accuracy<1000)
 
 glimpse(test)
 
@@ -37,7 +37,7 @@ names(inat_pheno_data) <- c("scientific_name", "latitude", "longitude", "url", "
 
 
 # set parameters as variables
-years <- 2008:2023 # earliest reliable records are 2008
+years <- 2008:2024 # earliest reliable records are 2008
 
 # to read back in and continue
 # inat_pheno_data <- read.csv(paste("data/inat_phenology_data_", taxon, ".csv", sep=""), h=TRUE)
@@ -46,7 +46,7 @@ years <- 2008:2023 # earliest reliable records are 2008
 # n.b. for-looping this borks up in a way that makes me suspect it's overloading the API
 for(y in years){
 
-# y <- 2016
+# y <- 2009
 
 bud.y <- try(get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_value_id=15, year=y, maxresults=1e4))
 Sys.sleep(5) # throttling under the API limit, maybe?
@@ -58,16 +58,16 @@ non.y <- try(get_inat_obs(quality="research", taxon_id=taxon, term_id=12, term_v
 Sys.sleep(5)  
 
 
-if(class(bud.y)=="data.frame") bud.o <- bud.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flower Budding", year=gsub("(\\d{4})-.+","\\1", observed_on)) else bud.o <- NULL
+if(class(bud.y)=="data.frame") bud.o <- bud.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flower Budding", year=gsub("(\\d{4})-.+","\\1", observed_on)) else bud.o <- NULL
 
-if(class(flo.y)=="data.frame") flo.o <- flo.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else flo.o <- NULL
+if(class(flo.y)=="data.frame") flo.o <- flo.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else flo.o <- NULL
 
-if(class(fru.y)=="data.frame") fru.o <- fru.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Fruiting", year=gsub("(\\d{4})-.+","\\1", observed_on)) else fru.o <- NULL
+if(class(fru.y)=="data.frame") fru.o <- fru.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="Fruiting", year=gsub("(\\d{4})-.+","\\1", observed_on)) else fru.o <- NULL
 
-if(class(non.y)=="data.frame") non.o <- non.y %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="No Evidence of Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else non.o <- NULL
+if(class(non.y)=="data.frame") non.o <- non.y %>% filter(captive_cultivated=="false", positional_accuracy<1000) %>% dplyr::select(scientific_name, latitude, longitude, url, image_url, observed_on) %>% mutate(phenology="No Evidence of Flowering", year=gsub("(\\d{4})-.+","\\1", observed_on)) else non.o <- NULL
 
 
-inat_pheno_data <- rbind(inat_pheno_data, bud.o, flo.o, fru.o, non.o)
+inat_pheno_data <- rbind(inat_pheno_data, bud.o, flo.o, fru.o, non.o) 
 
 
 if(!file.exists("data")) dir.create("data") # make sure there's a folder to write to!
@@ -121,28 +121,47 @@ ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = 
 write.table(cleaned, paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE, quote=FALSE)
 
 #-------------------------------------------------------------------------
-# visualize phenophase records by year
+# visualize phenophase records by year and location
 
 # if it's not already in memory ...
 cleaned <- read.csv(paste("data/inat_phenology_data_", taxon, "_cleaned.csv", sep=""), h=TRUE)
+table(cleaned$year) # oops, watch out for missing years in the early going
 
 # summary for image
-flr.raw.ln <- table(cleaned$year, cleaned$phenology) %>% as.data.frame() %>% rename(year=Var1, phenology=Var2, observations=Freq)
+flr.raw.ln <- table(cleaned$year, cleaned$phenology) %>% as.data.frame() %>% rename(year=Var1, phenology=Var2, observations=Freq) %>% mutate(year=as.numeric(as.character(year))) %>% rbind(data.frame(year=2009, phenology=c("Flower Budding", "Flowering", "Fruiting", "No Evidence of Flowering"), observations=0))
+
+flr.prp <- flr.raw.ln %>% group_by(year) %>% summarize(Ntot = sum(observations), Nflr = sum(observations[phenology!="No Evidence of Flowering"])) %>% mutate(Pflr=Nflr/Ntot)
+
+cor.test(~Pflr+as.numeric(year),data=flr.prp) # dummy-check for a trend
+# cor = 0.02, n.s.
+
 
 if(!dir.exists("output/figures")) dir.create("output/figures", recursive=TRUE) # make sure there's a folder to write to!
 
 # generate and write out a figure summarizing records by year and phenophase
-{cairo_pdf(paste("output/figures/iNat_obs_raw_", taxon, ".pdf", sep=""), width=6, height=4)
+{cairo_pdf(paste("output/figures/iNat_obs_raw_", taxon, ".pdf", sep=""), width=9, height=4.5)
 
-ggplot(flr.raw.ln, aes(x=year, y=observations, fill=phenology)) + 
-geom_bar(stat="identity", position="dodge") + 
+ggplot() + 
 
-scale_fill_manual(values=c('#1f78b4','#a6cee3','#33a02c','#b2df8a'), name="Phenology annotated") + 
+geom_bar(data=flr.prp, aes(x=year, y=Pflr), fill="gray90", stat="identity") +
 
-labs(x="Year of observation", y="iNat records (research grade)") + 
-theme_bw() +
-theme(legend.position="inside", legend.position.inside=c(0.2,0.8))
+geom_bar(data=flr.raw.ln, aes(x=year, y=observations/600, fill=phenology), stat="identity", position="dodge") + 
+
+annotate("text", x=2009, y=0.1, label="n.d.") + 
+
+scale_y_continuous(sec.axis = sec_axis(~ .*600, name="iNaturalist records")) +
+
+scale_fill_manual(values=c('#1f78b4','#a6cee3','#33a02c','#b2df8a'), labels=c("Budding", "Flowering", "Fruiting", "No flowers/fruits"), name="Phenophase") + 
+
+labs(x="Year of observation", y="Prop. flowering") + 
+
+scale_x_continuous(breaks=2008:2024, labels=c(rep("",2),2010,rep("",4),2015,rep("",4),2020,rep("",4))) +
+
+theme_bw(base_size=18) +
+
+theme(legend.position="top", panel.grid.minor=element_blank())
 
 }
 dev.off()
+
 

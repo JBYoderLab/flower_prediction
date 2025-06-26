@@ -1,15 +1,13 @@
 # working with phenology-annotated iNat observations
 # Assumes local environment 
-# jby 2024.09.16
+# jby 2025.05.21
 
 # starting up ------------------------------------------------------------
 
 # setwd("~/Documents/Active_projects/flower_prediction")
 
 library("tidyverse")
-library("lubridate")
-
-library("raster")
+library("terra")
 library("sf")
 
 # set parameters as variables
@@ -39,49 +37,47 @@ filter(inat, phenology=="Fruiting", month(observed_on)<6) # if this is not zero,
 inat$flr_yr <- inat$year
 inat$flr_yr[inat$phenology=="Fruiting" & month(inat$observed_on)<6] <- inat$year[inat$phenology=="Fruiting" & month(inat$observed_on)<6]-1
 
+glimpse(inat)
+
 
 #-------------------------------------------------------------------------
 # organize iNat observations for extraction of summarized PRISM data
 
 # data structure setup
-flowering <- data.frame(matrix(0,0,4))
-names(flowering) <- c("lon","lat","year", "flr")
+flowering <- data.frame(matrix(0,0,5))
+names(flowering) <- c("lon","lat","year", "prop_flr", "n_obs")
 
-prism_temp_rast <- raster(paste("data/PRISM/annual.", taxon, "/tmax_cropped_2010Q1.bil", sep="")) # raster grid base
+prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_cropped_2010Q1.bil", sep="")) # raster grid base
 
 # then LOOP over years in the raw data ....
 for(yr in unique(inat$flr_yr)){
 
-# yr <- 2012
+# yr <- 2020
 
-if(length(which(inat$flr_yr==yr & inat$phenology!="No Evidence of Flowering"))>0){
-	yes <- rasterize(dplyr::filter(inat, flr_yr==yr, phenology!="No Evidence of Flowering")[,c("longitude","latitude")], prism_temp_rast, fun=sum, background=0)
-	yearyes <- rasterToPoints(yes, fun=function(x){x>=1})
-	outyes <-data.frame(lon=yearyes[,"x"], lat=yearyes[,"y"], year=yr, flr=TRUE)
-}else{
-	outyes <- NULL
-}
+obs <- rasterize(as.matrix(dplyr::filter(inat, flr_yr==yr)[,c("longitude","latitude")]), prism_temp_rast, fun=length, background=NA)
 
-if(length(which(inat$flr_yr==yr & inat$phenology=="No Evidence of Flowering"))>0){
-	no <- rasterize(dplyr::filter(inat, flr_yr==yr, phenology=="No Evidence of Flowering")[,c("longitude","latitude")], prism_temp_rast, fun=sum, background=0)
-	yearno <- rasterToPoints(no, fun=function(x){x>=1})
-	outno <- data.frame(lon=yearno[,"x"], lat=yearno[,"y"], year=yr, flr=FALSE)	
-}else{
-	outno <- NULL
-}
+flr <- rasterize(as.matrix(dplyr::filter(inat, flr_yr==yr, phenology!="No Evidence of Flowering")[,c("longitude","latitude")]), prism_temp_rast, fun=length, background=0)
+
+flrfrq <- flr/obs
+
+outp <- data.frame(lon=crds(flrfrq)[,"x"], lat=crds(flrfrq)[,"y"], year=yr, prop_flr=as.data.frame(flrfrq)$values, n_obs=as.data.frame(obs)$values)
 
 # put it all together
-flowering <- rbind(flowering, outyes, outno)
+flowering <- rbind(flowering, outp)
+
 cat("Done with year", yr, "\n")
 
 } # END LOOP over years
 
 head(flowering)
 glimpse(flowering) # okay okay okay!
-table(flowering$year, flowering$flr) # smiling serenely
+table(flowering$year) # smiling serenely
+hist(flowering$prop_flr)
+hist(flowering$n_obs)
 
-write.table(flowering, paste("output/flowering_obs_rasterized_", taxon,".csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE)
 
+write.table(flowering, paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE)
+# flowering <- read.csv(paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""))
 
 #-------------------------------------------------------------------------
 # attach PRISM data to flowering/not flowering observations
@@ -89,7 +85,7 @@ write.table(flowering, paste("output/flowering_obs_rasterized_", taxon,".csv", s
 # we've got variables aggregated quarterly, assume we want Year 0 (year of obs) and Year -1 (year before obs)
 varnames <- paste(rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), paste(rep(c("y0", "y1"), each=20), paste("q", 1:4, sep=""), sep=""), sep=".")
 
-prism_temp_rast <- raster(paste("data/PRISM/annual.", taxon, "/tmax_cropped_2010Q1.bil", sep="")) # raster grid base
+prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_cropped_2010Q1.bil", sep="")) # raster grid base
 
 # new data structure
 flr.clim <- data.frame(matrix(0,0,ncol(flowering)+length(varnames)))
@@ -105,19 +101,19 @@ y0 <- yr
 y1 <- yr-1
 
 # list of files ... this assumes known variables, I should consider rewriting to use list.files()
-prismfiles <- paste("data/PRISM/annual.", taxon, "/", rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), "_cropped_", rep(c(y0, y1), each=20), "Q", 1:4, ".bil", sep="")
+prismfiles <- paste("../data/PRISM/quarterlies/", rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), "_cropped_", rep(c(y0, y1), each=20), "Q", 1:4, ".bil", sep="")
 
 # assemble weather data predictors for a given year
-preds <- stack(lapply(prismfiles, function(x) resample(raster(x), prism_temp_rast)))
+preds <- rast(lapply(prismfiles, function(x) resample(rast(x), prism_temp_rast)))
 names(preds) <- varnames
 
 # pull subset of flowering observations for year
 flsub <- subset(flowering, year==yr)
-flsub <- cbind(flsub, raster::extract(preds, flsub[,c("lon","lat")], df=FALSE))
+flsub <- cbind(flsub, terra::extract(preds, flsub[,c("lon","lat")], df=FALSE))
 
 flr.clim <- rbind(flr.clim,flsub) 
 
-write.table(flr.clim, paste("output/flowering_obs_climate_", taxon, ".csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE)
+write.table(flr.clim, paste0("output/flowering_freq_climate_", taxon, ".csv"), sep=",", col.names=TRUE, row.names=FALSE)
 
 cat("Done with year", yr, "\n")
 
@@ -130,27 +126,61 @@ glimpse(flr.clim)
 # and that's generated a data file we can feed into embarcadero ... in the next script!
 
 #-------------------------------------------------------------------------
-# map binary records
+# map gridded records
+
+flr.clim <- read.csv(paste0("output/flowering_freq_climate_", taxon, ".csv"))
+glimpse(flr.clim)
+
+flr.clim.summed <- flr.clim %>% group_by(lat, lon) %>% summarize(tot_obs = sum(n_obs))
+glimpse(flr.clim.summed)
 
 library("rnaturalearth")
 library("rnaturalearthdata")
+library("ggspatial")
+library("sf")
 
-# read data back in, if necessary
-flr.clim <- read.csv(paste("output/flowering_obs_climate_", taxon, ".csv", sep=""))
+# map elements
+states <- ne_states(country="united states of america", returnclass="sf")
+countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
+coast <- ne_coastline(scale=10, returnclass="sf")
 
-SppExt <- round(c(range(flr.clim$lon), range(flr.clim$lat)) * c(1.01,0.99,0.95,1.05),0) 
+# get the USFS range polygon for toyon
+usfs.Range <- read_sf("../data/spatial/wpetry-USTreeAtlas-4999258/shp/photarbu/", layer="photarbu", crs=4326)
+usfs.buff <- st_transform(st_buffer(st_transform(usfs.Range, crs=3857), 10000), crs=4326) %>% st_intersection(filter(ne_countries(scale=10, continent="north america", returnclass="sf"), name_en=="United States of America")) # 10km buffer?
 
-# map gridded, binary records
-{cairo_pdf(paste("output/flowering_obs_all_years_", taxon, ".pdf", sep=""), width=4, height=6)
 
-ggplot() + geom_sf(data=ne_countries(continent = "north america", returnclass = "sf")) + 
-	geom_point(data=flr.clim, aes(x=lon, y=lat, color=flr, shape=flr)) +
-	scale_shape_manual(values=c(21,20), name="Flowering") +
-	scale_color_manual(values=c("#e31a1c","#a6cee3"), name="Flowering") +
-	coord_sf(xlim = SppExt[1:2], ylim = SppExt[3:4], expand = TRUE) +
-	theme_bw() + theme(legend.position="inside", legend.position.inside=c(0.7,0.9), axis.title=element_blank())
+{cairo_pdf(paste("output/figures/record_distribution_map_", taxon, ".pdf", sep=""), width=3.2, height=4.5)
+
+ggplot() + 
+
+geom_sf(data=coast, color="slategray2", linewidth=3) + 
+geom_sf(data=countries, fill="antiquewhite4", color="antiquewhite4") + 
+geom_sf(data=states, fill="darkseagreen3", color="antiquewhite4") + 
+#geom_sf(data=filter(states, name=="California"), fill="cornsilk3", color="antiquewhite4") + 
+
+geom_sf(data=usfs.buff, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) + 
+
+geom_tile(data=flr.clim.summed, aes(x=lon, y=lat, fill=log10(tot_obs))) + 
+
+geom_sf(data=states, fill=NA, color="antiquewhite4") + 
+	
+annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
+annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
+annotate("text", x=-117.9, y=35.1, label="Core range", size=4, fontface="bold", color="darkseagreen4") + 
+
+	
+scale_fill_gradient(low="#fde0dd", high="#49006a", name=expression(log[10]("iNat records")), breaks=c(0,1,2)) + 
+labs(x="Longitude", y="Latitude") + 
+		
+coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
+annotation_scale(location = "bl", width_hint = 0.3) + 
+annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
+	
+theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"), legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.01,0.1,0.01,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
 
 }
 dev.off()
+
+
 
 
