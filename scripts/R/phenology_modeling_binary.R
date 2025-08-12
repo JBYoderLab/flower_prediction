@@ -1,6 +1,6 @@
 # Using BARTs to model flowering activity
 # best run on MAJEL
-# last used/modified jby, 2025.05.09
+# last used/modified jby, 2025.07.09
 
 rm(list=ls())  # Clears memory of all objects -- useful for debugging! But doesn't kill packages.
 
@@ -9,6 +9,8 @@ rm(list=ls())  # Clears memory of all objects -- useful for debugging! But doesn
 library("tidyverse")
 library("embarcadero")
 library("cowplot")
+
+set.seed(19820604)
 
 #-----------------------------------------------------------
 # initial file loading
@@ -74,9 +76,9 @@ write_rds(flr.mod, file=paste("output/BART/bart.model.", taxon, ".rds", sep=""))
 
 summary(flr.mod) # AUC reflects classification accuracy, how's that look?
 
-mod_valid <- summary(flr.mod)$data %>% dplyr::select(fitted, observed) %>% mutate(type="Training data", classified=fitted>0.129832)
+mod_valid <- summary(flr.mod)$data %>% dplyr::select(fitted, observed) %>% mutate(type="Training data", classified=fitted>0.1352385)
 
-rmse(mod_valid$classified, mod_valid$observed) # RMSE = 0.5938562
+rmse(mod_valid$classified, mod_valid$observed) # RMSE = 0.5807869
 
 
 p <- partial(flr.mod, topX, trace=FALSE, smooth=5) # visualize partials
