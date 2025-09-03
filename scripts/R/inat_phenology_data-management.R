@@ -147,17 +147,18 @@ coast <- ne_coastline(scale=10, returnclass="sf")
 # get the USFS range polygon for toyon
 usfs.Range <- read_sf("../data/spatial/wpetry-USTreeAtlas-4999258/shp/photarbu/", layer="photarbu", crs=4326)
 usfs.buff <- st_transform(st_buffer(st_transform(usfs.Range, crs=3857), 10000), crs=4326) %>% st_intersection(filter(ne_countries(scale=10, continent="north america", returnclass="sf"), name_en=="United States of America")) # 10km buffer?
-
+broad.Range <- read_sf(paste0("output/broad_range_polygon_", taxon, ".shp"))
 
 {cairo_pdf(paste("output/figures/record_distribution_map_", taxon, ".pdf", sep=""), width=3.2, height=4.5)
 
 ggplot() + 
 
 geom_sf(data=coast, color="slategray2", linewidth=3) + 
-geom_sf(data=countries, fill="antiquewhite4", color="antiquewhite4") + 
-geom_sf(data=states, fill="darkseagreen3", color="antiquewhite4") + 
+geom_sf(data=countries, fill="antiquewhite3", color="antiquewhite4") + 
+geom_sf(data=states, fill="antiquewhite2", color="antiquewhite4") + 
 #geom_sf(data=filter(states, name=="California"), fill="cornsilk3", color="antiquewhite4") + 
 
+geom_sf(data=broad.Range, fill="darkseagreen3", color=NA, linewidth=0.3, linetype=2) + 
 geom_sf(data=usfs.buff, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) + 
 
 geom_tile(data=flr.clim.summed, aes(x=lon, y=lat, fill=log10(tot_obs))) + 

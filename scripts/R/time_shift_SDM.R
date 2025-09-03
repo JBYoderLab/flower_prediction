@@ -1,6 +1,6 @@
 # Build a static species distribution model to project suitable habitat changes
 # Assumes local environment
-# jby 2025.05.19
+# jby 2025.08.05
 
 # setwd("~/Documents/Active_projects/flower_prediction")
 
@@ -20,11 +20,16 @@ library("CoordinateCleaner")
 library("sf")
 library("embarcadero")
 
+set.seed(19820604)
+
+
 # set parameters as variables
 taxon <- 53405 # toyon!
 # Prunus ilicifolia: 57250
 
 prism_set_dl_dir("../data/PRISM") # set PRISM data directory
+
+
 
 # get the USFS range polygon for toyon
 usfs.Range <- read_sf("../data/spatial/wpetry-USTreeAtlas-4999258/shp/photarbu/", layer="photarbu", crs=4326)
@@ -32,7 +37,6 @@ usfs.buff <- st_transform(st_buffer(st_transform(usfs.Range, crs=3857), 10000), 
 
 plot(usfs.Range)
 plot(usfs.buff)
-
 
 
 # new composite
@@ -49,6 +53,29 @@ taxonKey
 
 gbif_download <- occ_download(pred("taxonKey", taxonKey), pred_lt("coordinateUncertaintyInMeters", 500), format = "SIMPLE_CSV") 
 
+# <<gbif download>>
+#   Your download is being processed by GBIF:
+#   https://www.gbif.org/occurrence/download/0088290-250525065834625
+#   Most downloads finish within 15 min.
+#   Check status with
+#   occ_download_wait('0088290-250525065834625')
+#   After it finishes, use
+#   d <- occ_download_get('0088290-250525065834625') %>%
+#     occ_download_import()
+#   to retrieve your download.
+# Download Info:
+#   Username: jbyoder
+#   E-mail: jbyoder@mail.org
+#   Format: SIMPLE_CSV
+#   Download key: 0088290-250525065834625
+#   Created: 2025-07-02T22:06:01.734+00:00
+# Citation Info:  
+#   Please always cite the download DOI when using this data.
+#   https://www.gbif.org/citation-guidelines
+#   DOI: 
+#   Citation:
+#   GBIF Occurrence Download https://www.gbif.org/occurrence/download/0088290-250525065834625 Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2025-07-02
+
 # This doesn't immediately download your data --- it puts the request in a queue
 # on the GBIF servers. The text output to the screen has the details, and code
 # to use to actually download the data and load it directly into memory in R
@@ -57,9 +84,25 @@ gbif_download <- occ_download(pred("taxonKey", taxonKey), pred_lt("coordinateUnc
 # This function will pause until there's a download waiting and then let you
 # know when it's ready 
 occ_download_wait(gbif_download)
+# <<gbif download metadata>>
+#  Status: SUCCEEDED
+#  DOI: 10.15468/dl.dr82gw
+#  Format: SIMPLE_CSV
+#  Download key: 0088290-250525065834625
+#  Created: 2025-07-02T22:06:01.734+00:00
+#  Modified: 2025-07-02T22:07:43.023+00:00
+#  Download link: https://api.gbif.org/v1/occurrence/download/request/0088290-250525065834625.zip
+#  Total records: 22868
 
 # And this code will complete the download and read it into memory
 sppOcc_data <- occ_download_get(gbif_download) %>% occ_download_import()
+
+gbif_citation(occ_download_get(gbif_download))
+# $download
+# [1] "GBIF Occurrence Download https://doi.org/10.15468/dl.dr82gw Accessed from R via rgbif (https://github.com/ropensci/rgbif) on 2025-07-02"
+# $datasets
+# list()
+
 
 # Take a look at your data
 glimpse(sppOcc_data)
@@ -179,6 +222,64 @@ names(BIOCLIM_1991_2020) <- gsub(".+BIO_\\d\\d_(.+)_1991_2020\\.tiff", "\\1", fi
 
 BIOCLIM_1991_2020
 
+# We don't want to do this worldwide, so mask the BioClim data to a region defined by presence data:
+BIOCLIM_1991_2020_masked <- crop(mask(BIOCLIM_1991_2020, st_transform(broad.Range, crs=crs(BIOCLIM_1991_2020)), touches=TRUE), extent(st_transform(broad.Range, crs=crs(BIOCLIM_1991_2020))))
+plot(BIOCLIM_1991_2020_masked[[1]])
+
+bc_recent.df <- as.data.frame(BIOCLIM_1991_2020_masked)
+
+BIOCLIM_1901_1930_masked <- crop(mask(BIOCLIM_1901_1930, st_transform(broad.Range, crs=crs(BIOCLIM_1991_2020)), touches=TRUE), extent(st_transform(broad.Range, crs=crs(BIOCLIM_1901_1930))))
+plot(BIOCLIM_1901_1930_masked[[1]])
+
+
+# Illustrate changes on a map
+temp_change <- BIOCLIM_1991_2020_masked[["AMT"]]-BIOCLIM_1901_1930_masked[["AMT"]]
+
+BIOCLIM_changes <- cbind(crds(temp_change, df=TRUE), as.data.frame(temp_change)) %>% rename(lon=x, lat=y) 
+
+mean(BIOCLIM_changes$AMT)
+quantile(BIOCLIM_changes$AMT, c(0.025, 0.5, 0.975))
+
+library("rnaturalearth")
+library("rnaturalearthdata")
+library("ggspatial")
+
+# map elements
+states <- ne_states(country="united states of america", returnclass="sf")
+countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
+coast <- ne_coastline(scale=10, returnclass="sf")
+
+
+{cairo_pdf(paste("output/figures/AMT_change_map_", taxon, ".pdf", sep=""), width=3.2, height=4.5)
+
+ggplot() + 
+	geom_sf(data=coast, color="slategray2", linewidth=3) + 
+	geom_sf(data=countries, fill="cornsilk3", color="antiquewhite4") + 
+	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
+	
+	geom_tile(data=BIOCLIM_changes, aes(x=lon, y=lat, fill=AMT)) + 
+
+	geom_sf(data=states, fill=NA, color="antiquewhite4") + 
+	
+	geom_sf(data=usfs.buff, fill=NA, color="black", linewidth=0.3, linetype=2) + 
+	
+	annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
+	annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
+	
+	scale_fill_gradient2(low="#4575b4", mid="#ffffbf", high="#d73027", name="Change in AMT (°C), 1991-2020 vs 1901-1930", breaks=c(-0.5, 0, 1, 2)) + 
+	labs(x="Longitude", y="Latitude") + 
+		
+	coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
+	annotation_scale(location = "bl", width_hint = 0.3) + 
+	annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"),
+	style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
+	
+	theme_minimal(base_size=10) + theme(legend.position="bottom", legend.key.width=unit(0.5, "inches"),
+	legend.key.height=unit(0.15, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=9), legend.title=element_text(size=10, margin=margin(0, 0, 5, 0, unit="pt")), legend.title.position="top", panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
+
+}
+dev.off()
+
 
 #-------------------------------------------------------------------------
 # create occurrence and non-occurrence records, hitch them to climate data
@@ -189,7 +290,6 @@ plot(sppOcc_composite) # starting from this as our "presence" polygon
 presence <- rasterize(st_as_sf(sppOcc_clean_recent, coords=c("decimallongitude", "decimallatitude"), crs=4326), BIOCLIM_1991_2020[[1]], fun=function(x) count(x)>0) %>% crds(df=TRUE) %>% rename(lon=x, lat=y)
 glimpse(presence) # nice, there we go
 
-glimpse(presence) # okay cool
 
 # how do the points look?
 ggplot() + geom_sf(data=ne_countries(scale=10, continent = "north america", returnclass = "sf")) + 
@@ -284,14 +384,6 @@ write_rds(bart_sdm, file=paste0("output/BART/bart.SDM.", taxon, ".rds")) # save 
 #-------------------------------------------------------------------------
 # Now, predict species presence
 
-# We don't want to do this worldwide, so mask the BioClim data to a region defined by presence data:
-BIOCLIM_1991_2020_masked <- crop(mask(BIOCLIM_1991_2020, st_transform(broad.Range, crs=crs(BIOCLIM_1991_2020)), touches=TRUE), extent(st_transform(broad.Range, crs=crs(BIOCLIM_1991_2020))))
-plot(BIOCLIM_1991_2020_masked[[1]])
-
-bc_recent.df <- as.data.frame(BIOCLIM_1991_2020_masked)
-
-BIOCLIM_1901_1930_masked <- crop(mask(BIOCLIM_1901_1930, st_transform(broad.Range, crs=crs(BIOCLIM_1991_2020)), touches=TRUE), extent(st_transform(broad.Range, crs=crs(BIOCLIM_1901_1930))))
-plot(BIOCLIM_1901_1930_masked[[1]])
 
 # for the recent period ...
 # make a NaN vector of length ncell(stanRas)

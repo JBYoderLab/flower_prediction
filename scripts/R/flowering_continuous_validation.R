@@ -1,5 +1,5 @@
 # Analyzing predicted historical flowering 
-# jby 2025.05.22
+# jby 2025.07.08
 
 # starting up ------------------------------------------------------------
 
@@ -62,19 +62,25 @@ historic.stack.masked.usfs <- rast(paste0("output/models/DART_predicted_flowerin
 #-------------------------------------------------------------------------
 # USA-NPN data
 
-npn <- read.csv("data/datasheet_1747853116605/status_intensity_observation_data.csv") %>% mutate(Year = year(ymd(npn$Observation_Date)), Month=month(ymd(npn$Observation_Date)))
+npn <- read.csv("data/datasheet_1752018515618/status_intensity_observation_data.csv") %>% mutate(Year = year(ymd(npn$Observation_Date)), Month=month(ymd(npn$Observation_Date)))
 
 glimpse(npn)
 
 # what do we have?
 table(npn$Site_ID, npn$Year) 
 # okay a LOT of sites, actually; decent temporal cover also
+table(npn$Phenophase_Description) 
+
+npn %>% filter(Site_ID==8957, Year==2019) %>% group_by(Phenophase_Description, Month) %>% summarize(Np = n())
 
 npn_by_year_loc <- npn %>% group_by(Latitude, Longitude, Year) %>% summarize(Nobs = n())
-
 npn_by_year_loc
 
-# map this ------------------------------------------------
+npn %>% filter(Phenophase_Status==1) %>% group_by(Phenophase_Description, Phenophase_Status) %>% summarize(Np = n())
+# oookay, this is workable: Phenophase_Status is -1 if absent, 1 if present. So I can get a proxy for intensity by dividing n(1) for a given year/location by (n(-1)+n(1)), I think?
+
+
+# map npn sites ------------------------------------------------
 library("rnaturalearth")
 library("rnaturalearthdata")
 library("ggspatial")
@@ -114,285 +120,71 @@ ggplot() +
 
 # create a "flowering year" variable that wraps early-year observations of fruit into the previous year
 npn$flr_yr <- npn$Year
-npn$flr_yr[npn$Phenophase_=="Fruiting" & month(inat$observed_on)<6] <- inat$year[inat$phenology=="Fruiting" & month(inat$observed_on)<6]-1
+npn$flr_yr[npn$Phenophase_Description%in%c("Fruits", "Recent fruit or seed drop", "Ripe fruits") & npn$Month<6] <- npn$Year[npn$Phenophase_Description%in%c("Fruits", "Recent fruit or seed drop", "Ripe fruits") & npn$Month<6]-1
 
-glimpse(inat)
+glimpse(npn)
 
+npn_intensity <- npn %>% filter(Phenophase_Status==1) %>% group_by(Site_ID, Latitude, Longitude, flr_yr) %>% 
+				summarize(Ntot=n(), Nflr=length(which(Phenophase_Description%in%c("Fruits", "Recent fruit or seed drop", "Ripe fruits")))) %>% mutate(Prop_flr = Nflr/Ntot)
+npn_intensity # I think this does it?
 
-npn_site_intensity <- npn %>% group_by(Latitude, Longitude, Year, Month, Individual_ID) %>% summarize(Fruit = any(Phenophase_Name %in% c("Fruits", "Recent fruit drop", "Recent fruit or seed drop", "Ripe fruits")), Totobs = n())
 
 #-------------------------------------------------------------------------
-# pair with relevant info, reformat for analysis
+# pair with model predictions
 
-elev <- rast("../data/spatial/SR_50M/SR_50M.tif")
-elev
+historic.stack.masked # read in at the top
 
-# build a data frame for analysis? 
-historic.flowering.usfs <- cbind(crds(historic.stack.masked.usfs, df=TRUE), as.data.frame(historic.stack.masked.usfs)) %>% filter(!is.na(prFL.2009)) %>% rename(lon=x, lat=y) %>% pivot_longer(starts_with("prFL"), names_to="year", values_to="prFL") %>% mutate(year=as.numeric(gsub("prFL\\.(\\d+)", "\\1", year)))
+npn_intensity_predictions <- npn_intensity %>% filter(flr_yr!=2025) %>% mutate(prFL=NA)
 
-historic.flowering <- cbind(crds(historic.stack.masked, df=TRUE), as.data.frame(historic.stack.masked)) %>% filter(!is.na(prFL.2009)) %>% rename(lon=x, lat=y) %>% pivot_longer(starts_with("prFL"), names_to="year", values_to="prFL") %>% mutate(year=as.numeric(gsub("prFL\\.(\\d+)", "\\1", year)))
+for(yr in unique(npn_intensity_predictions$flr_yr)){
 
-glimpse(historic.flowering.usfs) # oh that's a lot
-glimpse(historic.flowering) # oh that's a LOT
+# yr <- 2020
 
-historic.flowering$usfs <- paste(historic.flowering$lat, historic.flowering$lon) %in% paste(historic.flowering.usfs$lat, historic.flowering.usfs$lon)
+subs <- npn_intensity_predictions %>% filter(flr_yr==yr)
 
-table(historic.flowering$usfs)
+subs_pred <- terra::extract(historic.stack.masked[paste0("prFL.", yr)], subs[,c("Longitude", "Latitude")])
 
-write.table(historic.flowering, paste0("output/DART_predicted_flowering_broad_", taxon, "_1900-2024.csv"), sep=",")
+npn_intensity_predictions$prFL[npn_intensity_predictions$flr_yr==yr] <- subs_pred[,2]
 
-# historic.flowering <- read.csv(paste0("output/DART_predicted_flowering_broad_", taxon, "_1900-2024.csv"))
+} # this will throw an error for 2025 because we don't have predictions that year!
 
-#-------------------------------------------------------------------------
-# Trend in flowering frequency, 1900-2023
+npn_intensity_predictions <- npn_intensity_predictions %>% filter(!is.na(prFL))
 
-# correlation coefficients
-timecor <- historic.flowering %>% group_by(lat, lon, usfs) %>% do(broom::tidy(cor.test(~prFL+year, data=., method="spearman"))) %>% ungroup() %>% rename(rho=estimate)
+glimpse(npn_intensity_predictions) # 380 year-location records
 
-timecor$elev_m <- terra::extract(elev, timecor[,c("lon", "lat")])$SR_50M 
+length(table(npn_intensity_predictions$Site_ID)) # 197 unique locations (!)
+range(table(npn_intensity_predictions$Site_ID))
+median(table(npn_intensity_predictions$Site_ID), 0.5)
 
-sumFlr <- historic.flowering %>% group_by(lat, lon, usfs) %>% summarize(mnPrFlr = mean(prFL), sdPrFlr = sd(prFL), CVPrFlr = sdPrFlr/(mnPrFlr)) %>% ungroup() %>% left_join(timecor)
+table(npn_intensity_predictions$flr_yr)
 
-glimpse(sumFlr)
-
-
-# Summary and analysis of average .........................
-hist(sumFlr$mnPrFlr[sumFlr$usfs])
-quantile(sumFlr$mnPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.81; 95% CI 0.69, 0.89
-t.test(sumFlr$mnPrFlr[sumFlr$usfs]) # mean > 0, p < 2.2e-16
-
-cor.test(~mnPrFlr+lat, data=filter(sumFlr, usfs), method="pearson")
-# cor = 0.83, p = 2.2e-16 --- bigger average PrFlr farther north
-
-cor.test(~mnPrFlr+elev_m, data=filter(sumFlr, usfs), method="pearson")
-# cor = 0.07, p = 5.9e-08 --- slightly greater average PrFlr farther uphill
-
-# Summary and analysis of variation (sd) ..................
-hist(sumFlr$sdPrFlr[sumFlr$usfs])
-quantile(sumFlr$sdPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.05, 95% CI 0.03, 0.08
-
-cor.test(~sdPrFlr+lat, data=filter(sumFlr, usfs), method="pearson")
-# cor = -0.72, p = 2.2e-16 --- more variation in the south
-
-cor.test(~sdPrFlr+elev_m, data=filter(sumFlr, usfs), method="pearson")
-# cor = -0.17, p < 2.2e-16 --- less variation in PrFlr farther uphill
-
-# Summary and analysis of variation (CV) ..................
-hist(sumFlr$CVPrFlr[sumFlr$usfs])
-quantile(sumFlr$CVPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.07, 95% CI 0.03, 0.11
-
-cor.test(~CVPrFlr+lat, data=filter(sumFlr, usfs), method="pearson")
-# cor = -0.78, p < 2.2e-16 --- more variation in the south
-
-cor.test(~CVPrFlr+elev_m, data=filter(sumFlr), method="pearson")
-# cor = -0.10, p < 2.2e-16 --- less variation farther uphill
+# moment of truth
+cor.test(~Prop_flr+prFL, data=npn_intensity_predictions, method="spearman")
+# rho = 0.23, p = 7.165e-06 
 
 
+{cairo_pdf(paste("output/figures/DART_predictions_validation_", taxon, ".pdf", sep=""), width=4.5, height=4)
 
-# Summary and analysis of the trend .......................
-hist(sumFlr$rho[sumFlr$usfs]) # interesting
-quantile(sumFlr$rho[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.13; 95% CI -0.15, 0.46
-t.test(sumFlr$rho) # mean > 0, p < 2.2e-16
-
-cor.test(~rho+lat, data=filter(sumFlr, usfs), method="pearson")
-# n.s.
-
-cor.test(~rho+elev_m, data=filter(sumFlr, usfs), method="pearson")
-# cor = 0.07, p = 9.0e-09 --- more positive trend at higher elevation
-
-
-# some comparisons for paranoia, maybe? ...................
-cor.test(~rho+mnPrFlr, data=filter(sumFlr, usfs), method="spearman")
-# cor = -0.04, p = 0.001 ... hm yeah that's higher correlations at lower mean intensity?
-
-# okay this is interestingly messy, not sure what I think of it
-ggplot(filter(sumFlr, usfs), aes(x=mnPrFlr, y=rho)) + geom_point(alpha=0.1) + geom_smooth(method="lm", color="white", linewidth=0.5) + theme_bw()
-
-ggplot(filter(sumFlr, usfs), aes(x=mnPrFlr, y=sdPrFlr)) + geom_point(alpha=0.1) + geom_smooth(method="lm", color="white", linewidth=0.5) + theme_bw()
-
-# map this ------------------------------------------------
-library("rnaturalearth")
-library("rnaturalearthdata")
-library("ggspatial")
-
-# map elements
-states <- ne_states(country="united states of america", returnclass="sf")
-countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
-coast <- ne_coastline(scale=10, returnclass="sf")
-
-	
-mnFlr_map <- ggplot() + 
-	geom_sf(data=coast, color="slategray2", linewidth=3) + 
-	geom_sf(data=countries, fill="cornsilk3", color="antiquewhite4") + 
-	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
-	
-	geom_tile(data=sumFlr, aes(x=lon, y=lat, fill=mnPrFlr)) + 
-
-	geom_sf(data=states, fill=NA, color="antiquewhite4") + 
-	
-	geom_sf(data=usfs.buff, fill=NA, color="black", linewidth=0.3, linetype=2) + 
-
-	annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
-	annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
-	
-	scale_fill_gradient(low="#e5f5f9", high="#2ca25f", name="Mean Pr(flowers),\n1900-2024", breaks=c(0.7,0.8,0.9)) + 
-	labs(x="Longitude", y="Latitude") + 
-		
-	coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
-	annotation_scale(location = "bl", width_hint = 0.3) + 
-	annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
-	
-	theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"), legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
-	
-cvFlr_map <- ggplot() + 
-	geom_sf(data=coast, color="slategray2", linewidth=3) + 
-	geom_sf(data=countries, fill="cornsilk3", color="antiquewhite4") + 
-	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
-	
-	geom_tile(data=sumFlr, aes(x=lon, y=lat, fill=CVPrFlr)) + 
-
-	geom_sf(data=states, fill=NA, color="antiquewhite4") + 
-	
-	geom_sf(data=usfs.buff, fill=NA, color="black", linewidth=0.3, linetype=2) + 
-
-	annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
-	annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
-	
-	scale_fill_gradient(low="#fff7bc", high="#d95f0e", name="CV of Pr(flowers),\n1900-2024", breaks=c(0.05,0.1)) + labs(x="Longitude", y="Latitude") + 
-		
-	coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
-	annotation_scale(location = "bl", width_hint = 0.3) + 
-	annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
-	
-	theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"),
-	legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(),
-	axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
-
-flrcor_map <- ggplot() + 
-	geom_sf(data=coast, color="slategray2", linewidth=3) + 
-	geom_sf(data=countries, fill="cornsilk3", color="antiquewhite4") + 
-	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
-	
-	geom_tile(data=sumFlr, aes(x=lon, y=lat, fill=rho)) + 
-
-	geom_sf(data=states, fill=NA, color="antiquewhite4") + 
-	
-	geom_sf(data=usfs.buff, fill=NA, color="black", linewidth=0.3, linetype=2) + 
-	
-	annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
-	annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
-	
-	scale_fill_gradient2(low="#f1a340", mid="white", high="#998ec3", name="Spearman's rho,\nPr(flowers) vs year", breaks=c(-0.25,0,0.25,0.5)) + labs(x="Longitude", y="Latitude") + 
-		
-	coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
-	annotation_scale(location = "bl", width_hint = 0.3) + 
-	annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
-	
-	theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"), legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.05,0.1,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 20, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
-
-{cairo_pdf(paste("output/figures/DART_flowering_summaries_map_", taxon, ".pdf", sep=""), width=10, height=4.5)
-
-ggdraw() + draw_plot(mnFlr_map, 0, 0, 0.33, 1) + draw_plot(cvFlr_map, 0.33, 0, 0.33, 1) + draw_plot(flrcor_map, 0.66, 0, 0.33, 1) + draw_plot_label(x=c(0.01, 0.34, 0.67), y=0.99, label=c("A", "B", "C"), size=20)
+ggplot(npn_intensity_predictions, aes(x=Prop_flr, y=prFL)) + 
+	geom_smooth(method="lm", color="white") + geom_point(alpha=0.5) + 
+	labs(x="USA-NPN flowering intensity", y="Modeled Pr(flowering)") + 
+	theme_bw(base_size=14)
 
 }
 dev.off()
 
-#-------------------------------------------------------------------------
-# map training data
-
-library("rnaturalearth")
-library("rnaturalearthdata")
-
-# map elements
-states <- ne_states(country="united states of america", returnclass="sf")
-countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
-coast <- ne_coastline(scale=10, returnclass="sf")
 
 
-glimpse(obs) # confirm I've got that
-
-propFlr_map <- ggplot() + 
-	geom_sf(data=coast, color="slategray2", linewidth=3) + 
-	geom_sf(data=countries, fill="cornsilk3", color="antiquewhite4") + 
-	geom_sf(data=states, fill="cornsilk3", color="antiquewhite4") + 
-
-	geom_sf(data=broad.Range, fill="darkseagreen", color=NA) + 
-	
-	geom_tile(data=filter(obs, year>=2021), aes(x=lon, y=lat, fill=prop_flr)) + 	
-	
-	facet_wrap("year", nrow=1) +
-	
-	scale_fill_gradient(low="#f7f7f7", high="#762a83", name="Observed prop. flowering", breaks=c(0.25,0.5,0.75)) + labs(x="Longitude", y="Latitude") + 
-		
-	coord_sf(xlim = c(-124.6,-116), ylim = c(32,42), expand = FALSE) +
-	
-	theme_minimal(base_size=20) + theme(legend.position="bottom", legend.key.width=unit(0.35, "inches"),
-	legend.key.height=unit(0.15, "in"), legend.direction="horizontal", axis.text=element_blank(),
-	axis.title=element_blank(), plot.margin=unit(c(0.05,0.01,0.05,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=12), legend.title=element_text(size=16, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank(), strip_text=element_text(size=22))
-
-{cairo_pdf(paste("output/figures/FlrFrq_2021_2024_", taxon, ".pdf", sep=""), width=10, height=4.5)
-
-propFlr_map
-
-}
-dev.off()
-
-#-------------------------------------------------------------------------
-# Comparison to static SDM
-
-early_SDM <- rast(paste0("output/BART/SDM_", taxon, "_prediction_1901_1930.tiff"))
-early_SDM_binary <- rast(paste0("output/BART/SDM_", taxon, "_prediction_binary_1901_1930.tiff"))
-recent_SDM <- rast(paste0("output/BART/SDM_", taxon, "_prediction_1991_2020.tiff"))
-recent_SDM_binary <- rast(paste0("output/BART/SDM_", taxon, "_prediction_binary_1991_2020.tiff"))
-
-glimpse(sumFlr)
-
-sumFlr$SDM_1901_1930 <- terra::extract(early_SDM, sumFlr[,c("lon", "lat")])$lyr.1
-sumFlr$SDM_pres_1901_1930 <- terra::extract(early_SDM_binary, sumFlr[,c("lon", "lat")])$lyr.1
-
-sumFlr$SDM_1991_2020 <- terra::extract(recent_SDM, sumFlr[,c("lon", "lat")])$lyr.1
-sumFlr$SDM_pres_1991_2020 <- terra::extract(recent_SDM_binary, sumFlr[,c("lon", "lat")])$lyr.1
-
-# comparisons
-sumFlr$SDM_change <- sumFlr$SDM_1991_2020 - sumFlr$SDM_1901_1930 # more positive, greater gain
-sumFlr$SDM_gain <- mapply(function(x,y) x==0 && y==1, sumFlr$SDM_pres_1901_1930, sumFlr$SDM_pres_1991_2020)
-sumFlr$SDM_loss <- mapply(function(x,y) x==1 && y==0, sumFlr$SDM_pres_1901_1930, sumFlr$SDM_pres_1991_2020)
-
-sumFlr$SDM_gl <- "No change"
-sumFlr$SDM_gl[sumFlr$SDM_gain] <- "Gain"
-sumFlr$SDM_gl[sumFlr$SDM_loss] <- "Loss"
-
-glimpse(sumFlr)
-length(which(sumFlr$SDM_gain)) # 629 cells
-length(which(sumFlr$SDM_loss)) # 1063 cells
-
-write.table(sumFlr, paste0("output/DART_and_SDM_summary_", taxon, ".csv"), sep=",", col.names=TRUE, row.names=FALSE)
-
-# And the stats!
-cor.test(~SDM_change+rho, data=sumFlr, method="spearman") 
-# cor = 0.12, p < 2.2e-16 ... THERE we go
-plot(recent_SDM - early_SDM) # hm
-
-### OH AND
-cor.test(~SDM_change+elev_m, data=sumFlr, method="spearman") # n.s.
-cor.test(~SDM_change+elev_m, data=filter(sumFlr, usfs), method="spearman") # n.s.
-
-cor.test(~SDM_change+lat, data=sumFlr, method="spearman") # rho = -0.13, p < 2.2e-16 whaaa
-cor.test(~SDM_change+lat, data=filter(sumFlr, usfs), method="spearman") # rho = -0.08, p < 1.2e-11 whaaa
+# hey kid, wanna see something freaky
+# (the correlation varies between years, I think, because within years there's only geographic variation, and
+# the USA-NPN sites don't cover that wide a range of geographic variation ...)
+ggplot(npn_intensity_predictions, aes(x=Prop_flr, y=prFL)) + 
+	geom_smooth(method="lm") + geom_point() + 
+	facet_wrap("flr_yr") +
+	labs(x="USA-NPN flowering intensity", y="Modeled Pr(flowering)") + 
+	theme_bw(base_size=14)
 
 
 
 
-t.test(sumFlr$rho[sumFlr$SDM_gain], sumFlr$rho[sumFlr$SDM_loss & sumFlr$usfs], alt="less")
-#  p-value = 0.52 welp
-
-t.test(sumFlr$rho[sumFlr$SDM_gain]) # mean > 0, p < 2.2e-16
-t.test(sumFlr$rho[sumFlr$SDM_loss]) # mean > 0, p < 2.2e-16 LMAO
-
-
-ggplot(sumFlr, aes(x=rho)) + geom_histogram() + facet_wrap("SDM_gl", ncol=1, scale="free")
-
-ggplot(filter(sumFlr, SDM_loss), aes(x=rho, fill=SDM_gain)) + geom_histogram() 
-# not super-clear that's a divergent subset, hmm
-t.test(sumFlr$rho[sumFlr$SDM_gain], sumFlr$rho[!sumFlr$SDM_loss]) # OKAY well
 

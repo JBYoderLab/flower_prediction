@@ -11,6 +11,8 @@ library("embarcadero")
 library("SoftBart")
 # devtools::install_github("theodds/SoftBART")
 
+set.seed(19820604)
+
 #-----------------------------------------------------------
 # initial file loading
 
@@ -44,7 +46,22 @@ flrDART <- read_rds(paste0("output/models/flrDART_", taxon, ".rds"))
 plot(flrDART$sigma_mu) # examine MCMC sampling
 
 #-------------------------------------------------------------------------
-# variable importance/selection
+# variable importance/selection --- single-model PIP
+
+# extract varimp info from model fitted above
+variable_selection <- data.frame(varimp=posterior_probs(flrDART)$varimp, post_prob=posterior_probs(flrDART)$post_probs, predictor=xvars) %>% dplyr::arrange(desc(post_prob)) %>% mutate(predictor=factor(predictor, predictor))
+
+# which predictors have posterior inclusion probability > 0.55? (Arbitrary threshold)
+variable_selection
+variable_selection %>% filter(post_prob > 0.55) # arbitrary threshold --- inspect visually to tweak
+
+
+# save the top-PIP set in this vector
+topXvars <- c("ppt.y1q3", "ppt.y0q1", "tmin.y1q3", "ppt.y1q3", "tmin.y1q4")
+
+
+#-------------------------------------------------------------------------
+# variable importance/selection --- varying model complexity
 
 # fit models with varying complexity
 flrDART_compare <- lapply(c(200,100,50,20,10), function(trees) softbart_regression(paste("prop_flr ~", paste(xvars, collapse="+")), data=flow, test_data=flow, num_tree = trees, k=2, opts=Opts(num_burn=2000, num_save=1000, num_thin=100))) # nb training a 200-tree model with these parameters has eta 3h on my M1 MacBook
@@ -58,8 +75,6 @@ invisible(flrDART_compare[[5]]$forest)
 write_rds(flrDART_compare, paste0("output/models/flrDART_compare_", taxon, ".rds"))
 # flrDART_compare <- read_rds(paste0("output/models/flrDART_compare_", taxon, ".rds"))
 
-# extract varimp info (single model)
-variable_selection <- data.frame(varimp=posterior_probs(flrDART)$varimp, post_prob=posterior_probs(flrDART)$post_probs, predictor=xvars) %>% dplyr::arrange(desc(post_prob)) %>% mutate(predictor=factor(predictor, predictor))
 
 # doing it for the multi-complexity approach
 xvars_ord <- xvars[order(posterior_probs(flrDART_compare[[4]])$post_probs, decreasing=TRUE)] # may tweak this
@@ -75,12 +90,6 @@ glimpse(var_sel_compare)
 levels(var_sel_compare$predictor) 
 
 levels(var_sel_compare$predictor) <- c("Tmin Y1Q3", "PPT Y0Q1", "PPT Y1Q4", "Tmin Y1Q4", "PPT Y1Q3", "VPDmin Y0Q1", "VPDmin Y1Q4", "VPDmax Y0Q1", "Tmax Y0Q1", "VPDmax Y1Q4", "VPDmax Y1Q3", "Tmax Y1Q3", "VPDmin Y1Q3", "Tmax Y1Q4", "Tmin Y0Q1")
-
-
-# which predictors have posterior inclusion probability > 0.55? (Arbitrary threshold)
-variable_selection
-variable_selection %>% filter(post_prob > 0.55) # arbitrary threshold --- inspect visually to tweak
-
 
 predsel <- ggplot(data=filter(var_sel_compare, trees%in%c(10,20,50,100,200)), aes(x=predictor, y=post_prob, color=trees, group=trees)) +
 	geom_line(linewidth=0.5) + geom_point(size=2) +
@@ -100,7 +109,7 @@ dev.off()
 
 topXvars <- xvars_ord[1:6]
 
-topXvars <- c("ppt.y1q3", "ppt.y0q1", "tmin.y1q3", "ppt.y1q3", "tmin.y1q4")
+topXvars <- c("tmin.y1q3", "ppt.y0q1", "ppt.y1q4", "tmin.y1q4", "ppt.y1q3", "vpdmin.y0q1")
 
 #-------------------------------------------------------------------------
 # fit a model with top-candidate predictors
@@ -117,7 +126,7 @@ write_rds(flrDARTtop, paste0("output/models/flrDARTtop_", taxon, ".rds"))
 plot(colMeans(flrDARTtop$mu_test), flow$prop_flr)
 abline(a = 0, b = 1)
 
-rmse(colMeans(flrDARTtop$mu_test), flow$prop_flr)
+rmse(colMeans(flrDARTtop$mu_test), flow$prop_flr) # 0.3470725
 
 #-------------------------------------------------------------------------
 # visualize partial effects of individual predictors 
