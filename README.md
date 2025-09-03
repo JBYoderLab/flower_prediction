@@ -1,4 +1,4 @@
-Studying flowering demography with crowd-sourced observations 
+TARDIS: Temporal Analysis of Reproduction Distributed in Space
 ==============================================================
 
 Readme updated 2 Sep 2025. 
