@@ -29,10 +29,10 @@ glimpse(flow)
 # computation time is determined by the time span covered and the area of prediction; 
 # this is one reason to try to restrict the size of the cropped area of consideration!
 
-if(!dir.exists(paste("output/BART/predictions.", taxon, sep=""))) dir.create(paste("output/BART/predictions.", taxon, sep=""))
+if(!dir.exists(paste("output/models/predictions.", taxon, sep=""))) dir.create(paste("output/models/predictions.", taxon, sep=""))
 
 # load the saved model developed in `phenology_modeling.R`
-flr.mod <- read_rds(file=paste("output/BART/bart.model.", taxon, ".rds", sep="")) # swap in RI if needed
+flr.mod <- read_rds(file=paste("output/models/bart.model.", taxon, ".rds", sep="")) # swap in RI if needed
 summary(flr.mod)
 
 flower.preds <- attr(flr.mod$fit$data@x, "term.labels")
@@ -71,7 +71,7 @@ pred.yr <- predict(flr.mod, preds[[flower.preds]], splitby=20)
 
 # pred.yr # useful confirmation if you're doing a single test year
 
-writeRaster(pred.yr, paste("output/BART/predictions.", taxon, "/BART_predicted_flowering_", taxon, "_", yr, ".bil", sep=""), overwrite=TRUE)
+writeRaster(pred.yr, paste("output/models/predictions.", taxon, "/BART_predicted_flowering_", taxon, "_", yr, ".bil", sep=""), overwrite=TRUE)
 
 } # END loop over years
 

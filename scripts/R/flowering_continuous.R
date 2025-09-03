@@ -123,25 +123,46 @@ sumFlr <- sumFlr %>% left_join(earlyFlr) %>% left_join(recentFlr) %>% mutate(del
 
 glimpse(sumFlr)
 
+# 1901-1930 MnPrFlr .............................
+quantile(sumFlr$eMnPrFlr, c(0.025, 0.5, 0.975)) # median 0.80, 95% CI 0.66, 0.89
+quantile(sumFlr$eMnPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.79, 95% CI 0.67, 0.88
+quantile(sumFlr$eMnPrFlr[!sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.81, 95% CI 0.66, 0.88
+wilcox.test(eMnPrFlr~usfs, data=sumFlr, alt="g") # false > true, p < 2.2e-16
+
+cor.test(~eMnPrFlr+lat, data=sumFlr, m="spearman")
+# cor = 0.84, p < 2.2e-16 --- bigger PrFlr farther north
+cor.test(~eMnPrFlr+lat, data=filter(sumFlr, usfs), m="spearman")
+# cor = 0.81 p < 2.2e-16 --- bigger PrFlr farther north
+cor.test(~eMnPrFlr+lat, data=filter(sumFlr, !usfs), m="spearman")
+# cor = 0.83, p < 2.2e-16 --- bigger PrFlr farther north
+
+cor.test(~eMnPrFlr+elev_m, data=sumFlr, m="spearman")
+# cor = 0.02, n.s. --- bigger PrFlr farther north
+cor.test(~eMnPrFlr+elev_m, data=filter(sumFlr, usfs), m="spearman")
+# cor = 0.05, p = 5.7e-05 --- bigger PrFlr farther north
+cor.test(~eMnPrFlr+elev_m, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.01, n.s. --- bigger PrFlr farther north
+
+
 # 1991-2020 MnPrFlr .............................
 quantile(sumFlr$rMnPrFlr, c(0.025, 0.5, 0.975)) # median 0.84, 95% CI 0.70, 0.90
 quantile(sumFlr$rMnPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.82, 95% CI 0.70, 0.91
 quantile(sumFlr$rMnPrFlr[!sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.84, 95% CI 0.69, 0.90
 wilcox.test(rMnPrFlr~usfs, data=sumFlr, alt="g") # false > true, p < 2.2e-16
 
-cor.test(~rMnPrFlr+lat, data=sumFlr)
+cor.test(~rMnPrFlr+lat, data=sumFlr, m="spearman")
+# cor = 0.84, p < 2.2e-16 --- bigger PrFlr farther north
+cor.test(~rMnPrFlr+lat, data=filter(sumFlr, usfs), m="spearman")
 # cor = 0.82, p < 2.2e-16 --- bigger PrFlr farther north
-cor.test(~rMnPrFlr+lat, data=filter(sumFlr, usfs))
-# cor = 0.83, p < 2.2e-16 --- bigger PrFlr farther north
-cor.test(~rMnPrFlr+lat, data=filter(sumFlr, !usfs))
-# cor = 0.82, p < 2.2e-16 --- bigger PrFlr farther north
+cor.test(~rMnPrFlr+lat, data=filter(sumFlr, !usfs), m="spearman")
+# cor = 0.84, p < 2.2e-16 --- bigger PrFlr farther north
 
-cor.test(~rMnPrFlr+elev_m, data=sumFlr)
-# cor = 0.07, p < 2.2e-16 --- bigger PrFlr farther north
-cor.test(~rMnPrFlr+elev_m, data=filter(sumFlr, usfs))
-# cor = 0.10, p < 2.2e-16 --- bigger PrFlr farther north
-cor.test(~rMnPrFlr+elev_m, data=filter(sumFlr, !usfs))
-# cor = 0.04, p < 2.2e-16 --- bigger PrFlr farther north
+cor.test(~rMnPrFlr+elev_m, data=sumFlr, m="spearman")
+# cor = 0.03, p = 1.5e-05 --- bigger PrFlr farther north
+cor.test(~rMnPrFlr+elev_m, data=filter(sumFlr, usfs), m="spearman")
+# cor = 0.05, p = 1.5e-05 --- bigger PrFlr farther north
+cor.test(~rMnPrFlr+elev_m, data=filter(sumFlr, !usfs), m="spearman")
+# cor = 0.01, p = 0.22 --- n.s.
 
 # change in MnPrFlr .............................
 ggplot(sumFlr, aes(x=delMnPrFlr, fill=usfs)) + geom_histogram(position="dodge") + theme_bw() 
@@ -150,19 +171,40 @@ quantile(sumFlr$delMnPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.02; 95
 quantile(sumFlr$delMnPrFlr[!sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.03; 95% CI -0.02, 0.07
 wilcox.test(delMnPrFlr~usfs, data=sumFlr, alt="g") # false > true, p = 5.6e-09
 
-cor.test(~delMnPrFlr+lat, data=sumFlr)
-# cor = -0.20, p < 2.2e-16 --- bigger increase in PrFlr farther south?
-cor.test(~delMnPrFlr+lat, data=filter(sumFlr, usfs))
-# cor = -0.08, p = 7.1e-11 --- slightly bigger increase in PrFlr farther south?
-cor.test(~delMnPrFlr+lat, data=filter(sumFlr, !usfs))
-# cor = -0.31, p < 2.2e-16 --- bigger increase in PrFlr farther south?
+cor.test(~delMnPrFlr+lat, data=sumFlr, m="spearman")
+# cor = -0.22, p < 2.2e-16 --- bigger increase in PrFlr farther south?
+cor.test(~delMnPrFlr+lat, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.08, p = 4.9e-10 --- slightly bigger increase in PrFlr farther south?
+cor.test(~delMnPrFlr+lat, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.34, p < 2.2e-16 --- bigger increase in PrFlr farther south?
 
-cor.test(~delMnPrFlr+elev_m, data=sumFlr)
-# cor = 0.12, p < 2.2e-16 --- greater increase in PrFlr farther uphill
-cor.test(~delMnPrFlr+elev_m, data=filter(sumFlr, usfs))
-# cor = 0.07, p = 2.0e-07 --- slightly greater increase in PrFlr farther uphill
-cor.test(~delMnPrFlr+elev_m, data=filter(sumFlr, !usfs))
-# cor = 0.15, p < 2.2e-16 --- greater increase in PrFlr farther uphill
+cor.test(~delMnPrFlr+elev_m, data=sumFlr, m="spearman")
+# cor = 0.04, p = 1.8e-08 --- greater increase in PrFlr farther uphill
+cor.test(~delMnPrFlr+elev_m, data=filter(sumFlr, usfs), m="spearman")
+# cor = 0.01, p = 0.26 --- n.s.
+cor.test(~delMnPrFlr+elev_m, data=filter(sumFlr, !usfs), m="spearman")
+# cor = 0.07, p =5.4e-12 --- greater increase in PrFlr farther uphill
+
+# 1901-1930 CVPrFlr .............................
+quantile(sumFlr$eCVPrFlr, c(0.025, 0.5, 0.975)) # median 0.06, 95% CI 0.02, 0.10
+quantile(sumFlr$eCVPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.06, 95% CI 0.02, 0.10
+quantile(sumFlr$eCVPrFlr[!sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.05, 95% CI 0.01, 0.10
+wilcox.test(eCVPrFlr~usfs, data=sumFlr, alt="l") # true > false, p < 2.2e-16
+
+cor.test(~eCVPrFlr+lat, data=sumFlr, m="spearman")
+# cor = -0.61, p < 2.2e-16 --- bigger CVPrFlr farther south
+cor.test(~eCVPrFlr+lat, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.64, p < 2.2e-16 --- bigger CVPrFlr farther south
+cor.test(~eCVPrFlr+lat, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.56, p < 2.2e-16 --- bigger CVPrFlr farther south
+
+cor.test(~eCVPrFlr+elev_m, data=sumFlr, m="spearman")
+# cor = -0.09, p < 2.2e-16 --- bigger CVPrFlr downhill
+cor.test(~eCVPrFlr+elev_m, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.09, p = 4.0e-13 --- bigger CVPrFlr downhill
+cor.test(~eCVPrFlr+elev_m, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.10, p < 2.2e-16 --- (barely) bigger CVPrFlr downhill
+
 
 # 1991-2020 CVPrFlr .............................
 quantile(sumFlr$rCVPrFlr, c(0.025, 0.5, 0.975)) # median 0.06, 95% CI 0.03, 0.13
@@ -170,19 +212,19 @@ quantile(sumFlr$rCVPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.07, 95% 
 quantile(sumFlr$rCVPrFlr[!sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.05, 95% CI 0.03, 0.11
 wilcox.test(rCVPrFlr~usfs, data=sumFlr, alt="l") # true > false, p < 2.2e-16
 
-cor.test(~rCVPrFlr+lat, data=sumFlr)
-# cor = -0.65, p < 2.2e-16 --- bigger CVPrFlr farther south
-cor.test(~rCVPrFlr+lat, data=filter(sumFlr, usfs))
-# cor = -0.70, p < 2.2e-16 --- bigger CVPrFlr farther south
-cor.test(~rCVPrFlr+lat, data=filter(sumFlr, !usfs))
-# cor = -0.56, p < 2.2e-16 --- bigger CVPrFlr farther south
+cor.test(~rCVPrFlr+lat, data=sumFlr, m="spearman")
+# cor = -0.63, p < 2.2e-16 --- bigger CVPrFlr farther south
+cor.test(~rCVPrFlr+lat, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.72, p < 2.2e-16 --- bigger CVPrFlr farther south
+cor.test(~rCVPrFlr+lat, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.52, p < 2.2e-16 --- bigger CVPrFlr farther south
 
-cor.test(~rCVPrFlr+elev_m, data=sumFlr)
-# cor = -0.15, p < 2.2e-16 --- bigger CVPrFlr downhill
-cor.test(~rCVPrFlr+elev_m, data=filter(sumFlr, usfs))
-# cor = -0.18, p < 2.2e-16 --- bigger CVPrFlr downhill
-cor.test(~rCVPrFlr+elev_m, data=filter(sumFlr, !usfs))
-# cor = -0.15, p < 2.2e-16 --- bigger CVPrFlr downhill
+cor.test(~rCVPrFlr+elev_m, data=sumFlr, m="spearman")
+# cor = -0.10, p < 2.2e-16 --- bigger CVPrFlr downhill
+cor.test(~rCVPrFlr+elev_m, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.09, p = 1.4e-12 --- bigger CVPrFlr downhill
+cor.test(~rCVPrFlr+elev_m, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.12, p < 2.2e-16 --- bigger CVPrFlr downhill
 
 
 # change in CVPrFlr .............................
@@ -192,19 +234,19 @@ quantile(sumFlr$delCVPrFlr[sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.01; 95
 quantile(sumFlr$delCVPrFlr[!sumFlr$usfs], c(0.025, 0.5, 0.975)) # median 0.005; 95% CI -0.02, 0.04
 wilcox.test(delCVPrFlr~usfs, data=sumFlr, alt="l") # false < true, p < 2.2e-16 HMM
 
-cor.test(~delCVPrFlr+lat, data=sumFlr)
-# cor = -0.18, p < 2.2e-16 --- much bigger increase farther south
-cor.test(~delCVPrFlr+lat, data=filter(sumFlr, usfs))
-# cor = -0.33, p < 2.2e-16 --- much bigger increase in CVFlr farther south
-cor.test(~delCVPrFlr+lat, data=filter(sumFlr, !usfs))
-# cor = 0.02, p < 2.2e-16 --- slightly bigger increase in CVFlr farther NORTH
+cor.test(~delCVPrFlr+lat, data=sumFlr, m="spearman")
+# cor = -0.10, p < 2.2e-16 --- much bigger increase farther south
+cor.test(~delCVPrFlr+lat, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.26, p < 2.2e-16 --- much bigger increase in CVFlr farther south
+cor.test(~delCVPrFlr+lat, data=filter(sumFlr, !usfs), m="spearman")
+# cor = 0.09, p < 2.2e-16 --- slightly bigger increase in CVFlr farther NORTH
 
-cor.test(~delCVPrFlr+elev_m, data=sumFlr)
-# cor = -0.14, p < 2.2e-16 --- greater increase in CVFlr at lower elevations
-cor.test(~delCVPrFlr+elev_m, data=filter(sumFlr, usfs))
-# cor = -0.11, p < 2.2e-16 --- greater increase in CVFlr at lower elevations
-cor.test(~delCVPrFlr+elev_m, data=filter(sumFlr, usfs))
-# cor = -0.11, p < 2.2e-16 --- greater increase in CVFlr at lower elevations
+cor.test(~delCVPrFlr+elev_m, data=sumFlr, m="spearman")
+# cor = -0.04, p = 2.5e-07 --- greater increase in CVFlr at lower elevations
+cor.test(~delCVPrFlr+elev_m, data=filter(sumFlr, usfs), m="spearman")
+# cor = -0.03, p = 0.06 --- n.s.
+cor.test(~delCVPrFlr+elev_m, data=filter(sumFlr, !usfs), m="spearman")
+# cor = -0.04, p = 3.3e-05 --- greater increase in CVFlr at lower elevations
 
 
 
@@ -294,6 +336,24 @@ write.table(sumFlr, paste0("output/DART_and_SDM_summary_", taxon, ".csv"), sep="
 # sumFlr <- read.csv(paste0("output/DART_and_SDM_summary_", taxon, ".csv"))
 
 # And the stats!
+# SDM suitability in early period vs mean flowering over early period
+cor.test(~SDM_1901_1930+eMnPrFlr, data=sumFlr, m="spearman")
+# rho = 0.04, p = 7.6e-07
+cor.test(~SDM_1901_1930+eMnPrFlr, data=filter(sumFlr, usfs), m="spearman")
+# rho = -0.19, p < 2.2e-16
+cor.test(~SDM_1901_1930+eMnPrFlr, data=filter(sumFlr, !usfs), m="spearman")
+# rho = 0.36, p < 2.2e-16
+
+
+# SDM suitability in early period vs CV of flowering over early period
+cor.test(~SDM_1901_1930+eCVPrFlr, data=sumFlr, m="spearman")
+# rho = 0.11, p < 2.2e-16
+cor.test(~SDM_1901_1930+eCVPrFlr, data=filter(sumFlr, usfs), m="spearman")
+# rho = 0.23, p < 2.2e-16
+cor.test(~SDM_1901_1930+eCVPrFlr, data=filter(sumFlr, !usfs), m="spearman")
+# rho = -0.07, p = 9.0e-14
+
+
 # SDM suitability in recent period vs mean flowering over recent period
 cor.test(~SDM_1991_2020+rMnPrFlr, data=sumFlr, m="spearman")
 # rho = -0.05, p = 4.4e-11
@@ -313,21 +373,21 @@ cor.test(~SDM_1991_2020+rCVPrFlr, data=filter(sumFlr, !usfs), m="spearman")
 
 
 # change in SDM suitability vs change in mean flowering intensity
-cor.test(~SDM_change+delMnPrFlr, data=sumFlr) 
-# cor = 0.16, p < 2.2e-16 ... THERE we go
-cor.test(~SDM_change+delMnPrFlr, data=filter(sumFlr, usfs)) 
-# cor = 0.09, p = 2.9e-12
-cor.test(~SDM_change+delMnPrFlr, data=filter(sumFlr, !usfs)) 
-# cor = 0.22, p < 2.2e-16
+cor.test(~SDM_change+delMnPrFlr, data=sumFlr, m="spearman") 
+# cor = 0.19, p < 2.2e-16 ... THERE we go
+cor.test(~SDM_change+delMnPrFlr, data=filter(sumFlr, usfs), m="spearman") 
+# cor = 0.06, p = 1.8e-06
+cor.test(~SDM_change+delMnPrFlr, data=filter(sumFlr, !usfs), m="spearman") 
+# cor = 0.28, p < 2.2e-16
 
 
 # change in SDM suitability vs change in CV of flowering intensity
-cor.test(~SDM_change+delCVPrFlr, data=sumFlr) 
-# cor = -0.20, p < 2.2e-16 ... OHO
-cor.test(~SDM_change+delCVPrFlr, data=filter(sumFlr, usfs)) 
-# cor = -0.18, p < 2.2e-16
-cor.test(~SDM_change+delCVPrFlr, data=filter(sumFlr, !usfs)) 
-# cor = -0.26, p < 2.2e-16
+cor.test(~SDM_change+delCVPrFlr, data=sumFlr, m="spearman") 
+# cor = -0.24, p < 2.2e-16 ... OHO
+cor.test(~SDM_change+delCVPrFlr, data=filter(sumFlr, usfs), m="spearman") 
+# cor = -0.21, p < 2.2e-16
+cor.test(~SDM_change+delCVPrFlr, data=filter(sumFlr, !usfs), m="spearman") 
+# cor = -0.30, p < 2.2e-16
 
 
 ### OH AND
@@ -736,26 +796,7 @@ plot_slice <- pred_flr_changes %>% group_by(timeframe, predictor) %>% slice_samp
 flr_change_summ <- pred_flr_changes %>% group_by(timeframe, predictor) %>% summarize(med_pred = median(pred_value), med_MnPrFlr = median(MnPrFlr)) %>% pivot_wider(names_from=timeframe, values_from=c(med_pred, med_MnPrFlr))
 
 
-MnPrFlr_change <- ggplot(plot_slice, aes(x=pred_value, y=MnPrFlr, color=timeframe)) + 
-	geom_point(alpha=0.25, size=1.25) + 
-	geom_segment(data=flr_change_summ, aes(x = med_pred_1901_1930, y = med_MnPrFlr_1901_1930, xend = med_pred_1991_2020, yend = med_MnPrFlr_1991_2020), arrow = arrow(length = unit(0.15, "cm")), color="black") +
-
-	facet_wrap("predictor", scale="free", nrow=2) + 
-
-	scale_color_manual(values=c("#0571b0","#e66101"), labels=c("1901-1930", "1991-2020"), name="Value for") + 
-
-	labs(y="Mean flowering intensity", x="Mean predictor value") + theme_minimal(base_size=9) + theme(legend.position="bottom", legend.key.size=unit(0.1, "in"))
-
-MnPrFlr_change
-
-
-
-
-
-
-{png(paste0("output/figures/pred_flr_change_", taxon, ".png"), width=750, height=500)
-
-ggplot(predictor_mean_change, aes(x=mean_change, y=delMnPrFlr, color=predclass)) + 
+MnPredChange <- ggplot(predictor_mean_change, aes(x=mean_change, y=delMnPrFlr, color=predclass)) + 
 	geom_point(alpha=0.1) +
 	geom_smooth(method="lm", color="black", se=FALSE, linewidth=0.25) + 
 	facet_wrap("predictor", nrow=2, scale="free_x") +
@@ -764,7 +805,23 @@ ggplot(predictor_mean_change, aes(x=mean_change, y=delMnPrFlr, color=predclass))
 	theme_bw(base_size=18) +
 	theme(legend.position="none")
 
+MnPredChange
+
+CVPredChange <- ggplot(predictor_mean_change, aes(x=mean_change, y=delCVPrFlr, color=predclass)) + 
+	geom_point(alpha=0.1) +
+	geom_smooth(method="lm", color="black", se=FALSE, linewidth=0.25) + 
+	facet_wrap("predictor", nrow=2, scale="free_x") +
+	scale_color_manual(values = c("#a6cee3", "#fdbf6f", "#cab2d6")) + 
+	labs(x="Change in predictor, 1991-2020 vs 1901-1930", y="Change in CV of flowering intensity") +
+	theme_bw(base_size=18) +
+	theme(legend.position="none")
+
+
+
+{png(paste0("output/figures/pred_flr_change_", taxon, ".png"), width=750, height=1000)
+
+ggdraw() + draw_plot(MnPredChange, 0, 0.5, 1, 0.5) + draw_plot(CVPredChange, 0, 0, 1, 0.5) + draw_plot_label(label=c("A", "B"), x=0, y=c(1, 0.5), size=24)
+
 }
 dev.off()
-
 
