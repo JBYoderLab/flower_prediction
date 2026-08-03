@@ -1,6 +1,6 @@
 # working with phenology-annotated iNat observations
-# Assumes local environment 
-# jby 2025.05.21
+# Assumes local environment
+# jby 2026.08.03
 
 # starting up ------------------------------------------------------------
 
@@ -47,7 +47,7 @@ glimpse(inat)
 flowering <- data.frame(matrix(0,0,5))
 names(flowering) <- c("lon","lat","year", "prop_flr", "n_obs")
 
-prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_cropped_2010Q1.bil", sep="")) # raster grid base
+prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_2010Q1.bil", sep="")) # raster grid base
 
 # then LOOP over years in the raw data ....
 for(yr in unique(inat$flr_yr)){
@@ -85,7 +85,7 @@ write.table(flowering, paste("output/flowering_freq_rasterized_", taxon,".csv", 
 # we've got variables aggregated quarterly, assume we want Year 0 (year of obs) and Year -1 (year before obs)
 varnames <- paste(rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), paste(rep(c("y0", "y1"), each=20), paste("q", 1:4, sep=""), sep=""), sep=".")
 
-prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_cropped_2010Q1.bil", sep="")) # raster grid base
+prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_2010Q1.bil", sep="")) # raster grid base
 
 # new data structure
 flr.clim <- data.frame(matrix(0,0,ncol(flowering)+length(varnames)))
@@ -101,7 +101,7 @@ y0 <- yr
 y1 <- yr-1
 
 # list of files ... this assumes known variables, I should consider rewriting to use list.files()
-prismfiles <- paste("../data/PRISM/quarterlies/", rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), "_cropped_", rep(c(y0, y1), each=20), "Q", 1:4, ".bil", sep="")
+prismfiles <- paste("../data/PRISM/quarterlies/", rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), "_", rep(c(y0, y1), each=20), "Q", 1:4, ".bil", sep="")
 
 # assemble weather data predictors for a given year
 preds <- rast(lapply(prismfiles, function(x) resample(rast(x), prism_temp_rast)))
@@ -111,7 +111,7 @@ names(preds) <- varnames
 flsub <- subset(flowering, year==yr)
 flsub <- cbind(flsub, terra::extract(preds, flsub[,c("lon","lat")], df=FALSE))
 
-flr.clim <- rbind(flr.clim,flsub) 
+flr.clim <- rbind(flr.clim,flsub)
 
 write.table(flr.clim, paste0("output/flowering_freq_climate_", taxon, ".csv"), sep=",", col.names=TRUE, row.names=FALSE)
 
@@ -151,32 +151,32 @@ broad.Range <- read_sf(paste0("output/broad_range_polygon_", taxon, ".shp"))
 
 {cairo_pdf(paste("output/figures/record_distribution_map_", taxon, ".pdf", sep=""), width=3.2, height=4.5)
 
-ggplot() + 
+ggplot() +
 
-geom_sf(data=coast, color="slategray2", linewidth=3) + 
-geom_sf(data=countries, fill="antiquewhite3", color="antiquewhite4") + 
-geom_sf(data=states, fill="antiquewhite2", color="antiquewhite4") + 
-#geom_sf(data=filter(states, name=="California"), fill="cornsilk3", color="antiquewhite4") + 
+geom_sf(data=coast, color="slategray2", linewidth=3) +
+geom_sf(data=countries, fill="antiquewhite3", color="antiquewhite4") +
+geom_sf(data=states, fill="antiquewhite2", color="antiquewhite4") +
+#geom_sf(data=filter(states, name=="California"), fill="cornsilk3", color="antiquewhite4") +
 
-geom_sf(data=broad.Range, fill="darkseagreen3", color=NA, linewidth=0.3, linetype=2) + 
-geom_sf(data=usfs.buff, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) + 
+geom_sf(data=broad.Range, fill="darkseagreen3", color=NA, linewidth=0.3, linetype=2) +
+geom_sf(data=usfs.buff, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) +
 
-geom_tile(data=flr.clim.summed, aes(x=lon, y=lat, fill=log10(tot_obs))) + 
+geom_tile(data=flr.clim.summed, aes(x=lon, y=lat, fill=log10(tot_obs))) +
 
-geom_sf(data=states, fill=NA, color="antiquewhite4") + 
-	
-annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) + 
-annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) + 
-annotate("text", x=-117.9, y=35.1, label="Core range", size=4, fontface="bold", color="darkseagreen4") + 
+geom_sf(data=states, fill=NA, color="antiquewhite4") +
 
-	
-scale_fill_gradient(low="#fde0dd", high="#49006a", name=expression(log[10]("iNat records")), breaks=c(0,1,2)) + 
-labs(x="Longitude", y="Latitude") + 
-		
+annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) +
+annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) +
+annotate("text", x=-117.9, y=35.1, label="Core range", size=4, fontface="bold", color="darkseagreen4") +
+
+
+scale_fill_gradient(low="#fde0dd", high="#49006a", name=expression(log[10]("iNat records")), breaks=c(0,1,2)) +
+labs(x="Longitude", y="Latitude") +
+
 coord_sf(xlim = c(-125.5,-115.5), ylim = c(32,42), expand = FALSE) +
-annotation_scale(location = "bl", width_hint = 0.3) + 
+annotation_scale(location = "bl", width_hint = 0.3) +
 annotation_north_arrow(location = "bl", which_north = "true", pad_x = unit(0.15, "in"), pad_y = unit(0.25, "in"), style = north_arrow_fancy_orienteering, height=unit(0.75, "in"), width=unit(0.5, "in")) +
-	
+
 theme_minimal(base_size=12) + theme(legend.position="bottom", legend.key.width=unit(0.25, "inches"), legend.key.height=unit(0.1, "in"), legend.direction="horizontal", axis.text=element_blank(), axis.title=element_blank(), plot.margin=unit(c(0.01,0.1,0.01,0.01), "inches"), legend.box.spacing=unit(0.001,"inches"), legend.box="horizontal", legend.text=element_text(size=10), legend.title=element_text(size=12, margin=margin(0, 10, 0, 10, unit="pt")), panel.background=element_rect(fill="slategray3", color="black"), panel.grid=element_blank())
 
 }
