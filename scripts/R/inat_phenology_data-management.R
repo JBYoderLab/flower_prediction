@@ -1,6 +1,6 @@
 # working with phenology-annotated iNat observations
 # Assumes local environment
-# jby 2026.08.03
+# jby 2026.08.05
 
 # starting up ------------------------------------------------------------
 
@@ -47,7 +47,7 @@ glimpse(inat)
 flowering <- data.frame(matrix(0,0,5))
 names(flowering) <- c("lon","lat","year", "prop_flr", "n_obs")
 
-prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_2010Q1.bil", sep="")) # raster grid base
+prism_temp_rast <- rast(paste0("../data/PRISM/quarterlies/tmax_2010Q1.tiff")) # raster grid base
 
 # then LOOP over years in the raw data ....
 for(yr in unique(inat$flr_yr)){
@@ -76,16 +76,16 @@ hist(flowering$prop_flr)
 hist(flowering$n_obs)
 
 
-write.table(flowering, paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""), sep=",", col.names=TRUE, row.names=FALSE)
-# flowering <- read.csv(paste("output/flowering_freq_rasterized_", taxon,".csv", sep=""))
+write.table(flowering, paste0("output/flowering_freq_rasterized_", taxon,".csv"), sep=",", col.names=TRUE, row.names=FALSE)
+# flowering <- read.csv(paste0("output/flowering_freq_rasterized_", taxon,".csv"))
 
 #-------------------------------------------------------------------------
 # attach PRISM data to flowering/not flowering observations
 
 # we've got variables aggregated quarterly, assume we want Year 0 (year of obs) and Year -1 (year before obs)
-varnames <- paste(rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), paste(rep(c("y0", "y1"), each=20), paste("q", 1:4, sep=""), sep=""), sep=".")
+varnames <- paste(rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), paste0(rep(c("y0", "y1"), each=20), paste0("q", 1:4)), sep=".")
 
-prism_temp_rast <- rast(paste("../data/PRISM/quarterlies/tmax_2010Q1.bil", sep="")) # raster grid base
+prism_temp_rast <- rast(paste0("../data/PRISM/quarterlies/tmax_2010Q1.tiff")) # raster grid base
 
 # new data structure
 flr.clim <- data.frame(matrix(0,0,ncol(flowering)+length(varnames)))
@@ -94,17 +94,17 @@ names(flr.clim) <- c(colnames(flowering), varnames)
 # LOOP over years, because of the current year previous year thing ...
 for(yr in sort(unique(flowering$year))){
 
-# yr <- 2020 # test condition
+# yr <- 2024 # test condition
 
 # specific years to target
 y0 <- yr
 y1 <- yr-1
 
 # list of files ... this assumes known variables, I should consider rewriting to use list.files()
-prismfiles <- paste("../data/PRISM/quarterlies/", rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), "_", rep(c(y0, y1), each=20), "Q", 1:4, ".bil", sep="")
+prismfiles <- paste("../data/PRISM/quarterlies/", rep(c("ppt", "tmax", "tmin", "vpdmax", "vpdmin"), each=4), "_", rep(c(y0, y1), each=20), "Q", 1:4, ".tiff", sep="")
 
 # assemble weather data predictors for a given year
-preds <- rast(lapply(prismfiles, function(x) resample(rast(x), prism_temp_rast)))
+preds <- rast(lapply(prismfiles, function(x) resample(rast(x)[[1]], prism_temp_rast)))
 names(preds) <- varnames
 
 # pull subset of flowering observations for year
@@ -144,10 +144,8 @@ states <- ne_states(country="united states of america", returnclass="sf")
 countries <- ne_countries(scale=10, continent="north america", returnclass="sf")
 coast <- ne_coastline(scale=10, returnclass="sf")
 
-# get the USFS range polygon for toyon
-usfs.Range <- read_sf("../data/spatial/wpetry-USTreeAtlas-4999258/shp/photarbu/", layer="photarbu", crs=4326)
-usfs.buff <- st_transform(st_buffer(st_transform(usfs.Range, crs=3857), 10000), crs=4326) %>% st_intersection(filter(ne_countries(scale=10, continent="north america", returnclass="sf"), name_en=="United States of America")) # 10km buffer?
-broad.Range <- read_sf(paste0("output/broad_range_polygon_", taxon, ".shp"))
+# a range polygon, if we have one
+rangepoly <- st_transform(st_buffer(st_transform(read_sf("../data/spatial/wpetry-USTreeAtlas-4999258/shp/photarbu/", layer="photarbu", crs=4326), crs=3857), 10000), crs=4326) %>% st_intersection(filter(ne_countries(scale=10, continent="north america", returnclass="sf"), name_en=="United States of America")) # 10km buffer?
 
 {cairo_pdf(paste("output/figures/record_distribution_map_", taxon, ".pdf", sep=""), width=3.2, height=4.5)
 
@@ -158,8 +156,7 @@ geom_sf(data=countries, fill="antiquewhite3", color="antiquewhite4") +
 geom_sf(data=states, fill="antiquewhite2", color="antiquewhite4") +
 #geom_sf(data=filter(states, name=="California"), fill="cornsilk3", color="antiquewhite4") +
 
-geom_sf(data=broad.Range, fill="darkseagreen3", color=NA, linewidth=0.3, linetype=2) +
-geom_sf(data=usfs.buff, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) +
+geom_sf(data=rangepoly, fill="darkseagreen4", color=NA, linewidth=0.3, linetype=2) +
 
 geom_tile(data=flr.clim.summed, aes(x=lon, y=lat, fill=log10(tot_obs))) +
 
@@ -167,7 +164,6 @@ geom_sf(data=states, fill=NA, color="antiquewhite4") +
 
 annotate("text", x=-119, y=36, label="CA", size=12, color="white", alpha=0.35) +
 annotate("text", x=-117.5, y=40, label="NV", size=12, color="white", alpha=0.35) +
-annotate("text", x=-117.9, y=35.1, label="Core range", size=4, fontface="bold", color="darkseagreen4") +
 
 
 scale_fill_gradient(low="#fde0dd", high="#49006a", name=expression(log[10]("iNat records")), breaks=c(0,1,2)) +

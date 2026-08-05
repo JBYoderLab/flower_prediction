@@ -35,7 +35,7 @@ get_prism_monthlys(type="vpdmin", mon=1:12, resolution = "4km", year=yr, keepZip
 if(!dir.exists("../data/PRISM/quarterlies")) dir.create("../data/PRISM/quarterlies")
 
 # parse monthly values into quarterlies
-for(yr in 1898:2025){
+for(yr in 1895:2025){
 
 # yr <- 2024
 
